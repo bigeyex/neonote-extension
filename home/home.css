@@ -234,3 +234,58 @@ select {
 .hidden {
     display: none !important;
 }
+
+/* Shortcuts Settings */
+.shortcuts-control {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.shortcut-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.shortcut-input-wrapper input {
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    padding: 6px 10px;
+    width: 140px;
+    text-align: center;
+    font-family: monospace;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.shortcut-input-wrapper input:focus,
+.shortcut-input-wrapper input.recording {
+    border-color: var(--primary-color);
+    outline: none;
+    background: var(--bg-primary);
+}
+
+.shortcut-input-wrapper button {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 1.1em;
+}
+
+.shortcut-input-wrapper button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}

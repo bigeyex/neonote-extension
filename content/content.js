@@ -15,11 +15,16 @@ async function handleMouseUp(e) {
 
     if (text && text.length > 0) {
         // Check if sidebar is open before showing popup
-        const result = await chrome.storage.local.get('sidebarOpen');
-        if (result.sidebarOpen) {
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            showPopup(rect, text);
+        try {
+            if (!chrome.storage || !chrome.storage.local) return;
+            const result = await chrome.storage.local.get('sidebarOpen');
+            if (result.sidebarOpen) {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                showPopup(rect, text);
+            }
+        } catch (err) {
+            // Extension context invalidated
         }
     }
 }
@@ -62,4 +67,81 @@ function removePopup() {
         popup.remove();
         popup = null;
     }
+}
+
+// Shortcut Listener
+let cachedSettings = null;
+
+async function updateSettings() {
+    try {
+        if (!chrome.storage || !chrome.storage.local) return;
+        const result = await chrome.storage.local.get('settings');
+        cachedSettings = result.settings || {
+            toggleShortcut: 'Meta+0',
+            submitShortcut: 'Meta+Enter'
+        };
+    } catch (err) {
+        // Context invalidated
+    }
+}
+
+updateSettings();
+
+chrome.storage.onChanged.addListener((changes) => {
+    if (changes.settings) {
+        cachedSettings = changes.settings.newValue;
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    // Ignore if inside an input/textarea (unless it's a modifier-heavy shortcut that we want to override?)
+    // Usually good practice to not trigger if user is typing, but for "Toggle Sidebar" (Cmd+\ or Ctrl+\) it is usually fine.
+    // However, let's avoid if target is editable to be safe, unless it is a very specific command.
+    // Actually, user might want to toggle while typing in a form on the page. Configurable shortcuts usually skip this check if modifiers are involved.
+
+    // We need to fetch settings every time or cache it? caching is better but need to listen for changes.
+    // For simplicity, let's get it. (Storage.local is fast enough usually, or we can use a variable updated by onChanged)
+
+    if (!cachedSettings || !cachedSettings.toggleShortcut) return;
+
+    if (matchesShortcut(e, cachedSettings.toggleShortcut)) {
+        e.preventDefault();
+        const selection = window.getSelection().toString();
+        try {
+            chrome.runtime.sendMessage({
+                type: 'TOGGLE_SIDEBAR',
+                selectionText: selection
+            });
+        } catch (err) {
+            // Context invalidated
+        }
+    }
+});
+
+function matchesShortcut(event, shortcutString) {
+    if (!shortcutString) return false;
+
+    const parts = shortcutString.split('+');
+    const key = parts.pop();
+    const modifiers = parts;
+
+    // Check key
+    // Handle special cases if necessary, but usually event.key is good.
+    // "Space" -> " " in event.key
+    let eventKey = event.key;
+    if (eventKey === ' ') eventKey = 'Space';
+    if (eventKey.length === 1) eventKey = eventKey.toUpperCase();
+
+    if (key.toUpperCase() !== eventKey.toUpperCase()) return false;
+
+    // Check modifiers
+    const meta = modifiers.includes('Meta');
+    const ctrl = modifiers.includes('Ctrl');
+    const alt = modifiers.includes('Alt');
+    const shift = modifiers.includes('Shift');
+
+    return event.metaKey === meta &&
+        event.ctrlKey === ctrl &&
+        event.altKey === alt &&
+        event.shiftKey === shift;
 }

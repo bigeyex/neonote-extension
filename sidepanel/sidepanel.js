@@ -43,6 +43,7 @@ async function init() {
 
     setupListeners();
     await processPendingHighlight();
+    await processPendingQuote();
 }
 
 // Notify when sidebar closes
@@ -56,6 +57,25 @@ async function processPendingHighlight() {
         const { text, url } = result.pendingHighlight;
         await createNewHighlightNote(text, url);
         await chrome.storage.local.remove('pendingHighlight');
+    }
+}
+
+async function processPendingQuote() {
+    const result = await chrome.storage.local.get('pendingQuote');
+    if (result.pendingQuote) {
+        const { text, url } = result.pendingQuote;
+        editor.innerHTML = `<div class="highlight-quote">"${text}"</div><div><br></div>`;
+
+        // Focus at end
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        editor.focus();
+
+        await chrome.storage.local.remove('pendingQuote');
     }
 }
 
@@ -97,6 +117,17 @@ function setupListeners() {
     editor.addEventListener('paste', handlePaste);
     editor.addEventListener('input', handleEditorInput);
 
+    // Submit Shortcut
+    editor.addEventListener('keydown', async (e) => {
+        const settings = (await chrome.storage.local.get('settings')).settings;
+        const submitShortcut = settings && settings.submitShortcut ? settings.submitShortcut : 'Meta+Enter';
+
+        if (matchesShortcut(e, submitShortcut)) {
+            e.preventDefault();
+            handleSave();
+        }
+    });
+
     // Listen for tab changes
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if (tabId === currentTabId && changeInfo.url) {
@@ -119,8 +150,34 @@ function setupListeners() {
             processPendingHighlight();
         } else if (message.type === 'CREATE_HIGHLIGHT_NOTE') {
             createNewHighlightNote(message.text, message.url);
+        } else if (message.type === 'CLOSE_SIDEBAR_REQUEST') {
+            window.close();
         }
     });
+}
+
+function matchesShortcut(event, shortcutString) {
+    if (!shortcutString) return false;
+
+    const parts = shortcutString.split('+');
+    const key = parts.pop();
+    const modifiers = parts;
+
+    let eventKey = event.key;
+    if (eventKey === ' ') eventKey = 'Space';
+    if (eventKey.length === 1) eventKey = eventKey.toUpperCase();
+
+    if (key.toUpperCase() !== eventKey.toUpperCase()) return false;
+
+    const meta = modifiers.includes('Meta');
+    const ctrl = modifiers.includes('Ctrl');
+    const alt = modifiers.includes('Alt');
+    const shift = modifiers.includes('Shift');
+
+    return event.metaKey === meta &&
+        event.ctrlKey === ctrl &&
+        event.altKey === alt &&
+        event.shiftKey === shift;
 }
 
 async function createNewHighlightNote(text, url) {

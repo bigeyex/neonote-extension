@@ -81,3 +81,30 @@
 .url-source:hover {
     text-decoration: underline;
 }
+
+/* Shared Icon Button */
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    padding: 0;
+}
+
+.icon-btn:hover {
+    background-color: var(--icon-hover);
+    color: var(--text-primary);
+}
+
+.icon-btn.active {
+    color: var(--accent-color);
+    background-color: var(--tag-bg);
+}

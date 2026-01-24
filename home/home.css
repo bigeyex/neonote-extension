@@ -28,6 +28,21 @@ body {
     background: linear-gradient(45deg, var(--accent-color), #00f2ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#sync-home {
+    -webkit-text-fill-color: var(--text-secondary);
+    margin-left: 8px;
+    opacity: 0.6;
+    height: auto;
+    width: auto;
+}
+
+#sync-home:hover {
+    opacity: 1;
 }
 
 .search-container {

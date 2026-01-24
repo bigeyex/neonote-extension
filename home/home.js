@@ -2,6 +2,7 @@ import { getAllNotes, saveNote, deleteNote } from '../scripts/db.js';
 import { initTheme, setTheme, getCurrentTheme, THEMES } from '../scripts/theme.js';
 
 import { syncToLark } from '../scripts/lark_sync.js';
+import { handleCleanPaste } from '../scripts/paste_utils.js';
 
 // DOM Elements
 const notesGrid = document.getElementById('notes-grid');
@@ -218,6 +219,8 @@ function renderNotes() {
         contentEl.addEventListener('dblclick', () => {
             contentEl.contentEditable = 'true';
             contentEl.focus();
+            // Add paste listener for cleaned content
+            contentEl.addEventListener('paste', (e) => handleCleanPaste(e, contentEl), { once: true });
         });
 
         contentEl.addEventListener('blur', async () => {

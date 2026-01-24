@@ -39,30 +39,10 @@ header {
   /* Subtle border */
 }
 
-.icon-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  border-radius: 6px;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
 
-.icon-btn:hover {
-  background-color: var(--icon-hover);
-  color: var(--text-primary);
-}
+/* Shared Icon Button moved to styles/components.css */
 
-.icon-btn.active {
-  color: var(--accent-color);
-  background-color: var(--tag-bg);
-}
+/* Main Content */
 
 input#search {
   flex: 1;

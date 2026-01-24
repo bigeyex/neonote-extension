@@ -1,6 +1,7 @@
 import { saveNote, getAllNotes, deleteNote, getNotesByUrl, getRecentNotes } from '../scripts/db.js';
 import { initTheme } from '../scripts/theme.js';
 import { syncToLark } from '../scripts/lark_sync.js';
+import { handleCleanPaste } from '../scripts/paste_utils.js';
 
 const searchInput = document.getElementById('search');
 const clearFiltersBtn = document.getElementById('clear-filters');
@@ -141,7 +142,7 @@ function setupListeners() {
         }
     });
 
-    editor.addEventListener('paste', handlePaste);
+    editor.addEventListener('paste', (e) => handleCleanPaste(e, editor));
     editor.addEventListener('input', handleEditorInput);
 
     // Submit Shortcut
@@ -398,6 +399,8 @@ function renderNotes(notes) {
         noteEl.querySelector('.note-content').addEventListener('dblclick', function () {
             this.contentEditable = "true";
             this.focus();
+            // Add paste listener for cleaned content
+            this.addEventListener('paste', (e) => handleCleanPaste(e, this), { once: true });
         });
 
         noteEl.querySelector('.note-content').addEventListener('blur', async function () {
@@ -433,21 +436,7 @@ async function handleDelete(id) {
     }
 }
 
-function handlePaste(e) {
-    const items = e.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-            const blob = items[i].getAsFile();
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = document.createElement('img');
-                img.src = event.target.result;
-                editor.appendChild(img);
-            };
-            reader.readAsDataURL(blob);
-        }
-    }
-}
+// handlePaste removed and replaced by handleCleanPaste from paste_utils.js
 
 async function handleEditorInput(e) {
     const text = editor.innerText;

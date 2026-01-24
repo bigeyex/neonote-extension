@@ -132,7 +132,10 @@ async function syncContent(appToken, tableId, headers, fieldMap) {
         const url = `${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/records?page_size=500${pageToken ? `&page_token=${pageToken}` : ''}`;
         const res = await fetch(url, { headers });
         const data = await res.json();
-        if (data.code !== 0) break;
+        if (data.code !== 0 || !data.data || !data.data.items) {
+            hasMore = false;
+            break;
+        }
 
         existingRecords = existingRecords.concat(data.data.items);
         hasMore = data.data.has_more;
@@ -144,15 +147,17 @@ async function syncContent(appToken, tableId, headers, fieldMap) {
 
     for (const note of notes) {
         const noteIdStr = String(note.id);
-        const existing = existingRecords.find(r => r.fields[fieldMap['note_id']] === noteIdStr);
 
-        const recordFields = {};
-        if (fieldMap['note_id']) recordFields[fieldMap['note_id']] = noteIdStr;
-        if (fieldMap['content']) recordFields[fieldMap['content']] = note.content;
-        // For type 1 (Text), URL is just string.
-        if (fieldMap['url']) recordFields[fieldMap['url']] = note.url;
-        if (fieldMap['tags']) recordFields[fieldMap['tags']] = note.tags.join(', ');
-        if (fieldMap['timestamp']) recordFields[fieldMap['timestamp']] = note.timestamp; // Timestamp (number) might need conversion if type is Date
+        // Record lookup using field name 'note_id'
+        const existing = existingRecords.find(r => r && r.fields && r.fields['note_id'] === noteIdStr);
+
+        const recordFields = {
+            'note_id': noteIdStr,
+            'content': note.content || '',
+            'url': note.url || '',
+            'tags': Array.isArray(note.tags) ? note.tags.join(', ') : '',
+            'timestamp': note.timestamp
+        };
 
         if (existing) {
             // Check if update needed (simple check: timestamp)

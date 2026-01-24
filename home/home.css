@@ -1,6 +1,7 @@
 body {
     display: flex;
     overflow: hidden;
+    margin: 0;
     background-color: var(--bg-color);
 }
 
@@ -227,4 +228,9 @@ select {
     color: var(--text-primary);
     outline: none;
     font-size: 14px;
+}
+
+/* Utility */
+.hidden {
+    display: none !important;
 }

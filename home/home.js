@@ -5,7 +5,7 @@ import { initTheme, setTheme, getCurrentTheme, THEMES } from '../scripts/theme.j
 const notesGrid = document.getElementById('notes-grid');
 const searchInput = document.getElementById('search-input');
 const tagsList = document.getElementById('tags-list');
-const navHome = document.getElementById('nav-home');
+// navHome removed - dashboard is default when interacting with tags/search
 const navSettings = document.getElementById('nav-settings');
 const viewDashboard = document.getElementById('view-dashboard');
 const viewSettings = document.getElementById('view-settings');
@@ -31,28 +31,41 @@ async function init() {
 
 function setupListeners() {
     // Navigation
-    navHome.addEventListener('click', () => switchView('dashboard'));
+
     navSettings.addEventListener('click', () => switchView('settings'));
 
     // Search
+    // Search: switch to dashboard and filter
     searchInput.addEventListener('input', (e) => {
         currentFilter.text = e.target.value.toLowerCase();
+        switchView('dashboard');
         renderNotes();
+    });
+
+    searchInput.addEventListener('focus', () => {
+        switchView('dashboard');
     });
 }
 
 function switchView(viewName) {
     if (viewName === 'dashboard') {
+        if (viewDashboard.classList.contains('active')) return;
+
         viewDashboard.classList.remove('hidden');
         viewSettings.classList.add('hidden');
         viewDashboard.classList.add('active');
-        navHome.classList.add('active');
         navSettings.classList.remove('active');
+        renderTags();
     } else {
+        if (!viewSettings.classList.contains('hidden')) return;
+
         viewDashboard.classList.add('hidden');
         viewSettings.classList.remove('hidden');
-        navHome.classList.remove('active');
+        viewDashboard.classList.remove('active');
         navSettings.classList.add('active');
+
+        const activeTags = tagsList.querySelectorAll('.tag-item.active');
+        activeTags.forEach(t => t.classList.remove('active'));
     }
 }
 
@@ -82,7 +95,8 @@ function renderTags() {
     allItem.onclick = () => {
         currentFilter.tag = null;
         pageTitle.textContent = 'All Notes';
-        renderTags(); // re-render to update active state
+        switchView('dashboard');
+        renderTags();
         renderNotes();
     };
     tagsList.appendChild(allItem);
@@ -94,6 +108,7 @@ function renderTags() {
         item.onclick = () => {
             currentFilter.tag = tag;
             pageTitle.textContent = `#${tag}`;
+            switchView('dashboard');
             renderTags();
             renderNotes();
         };

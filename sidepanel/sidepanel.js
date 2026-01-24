@@ -1,4 +1,4 @@
-import { saveNote, getAllNotes, deleteNote, getNotesByUrl } from '../scripts/db.js';
+import { saveNote, getAllNotes, deleteNote, getNotesByUrl, getRecentNotes } from '../scripts/db.js';
 import { initTheme } from '../scripts/theme.js';
 
 const searchInput = document.getElementById('search');
@@ -9,10 +9,15 @@ const notesList = document.getElementById('notes-list');
 const urlToggleBtn = document.getElementById('toggle-url-filter');
 const homeBtn = document.getElementById('open-home');
 const tagSuggestions = document.getElementById('tag-suggestions');
+const loadingIndicator = document.getElementById('loading-indicator');
 
 let currentUrl = '';
 let currentTabId = null;
 let currentFilter = { text: '', urlOnly: true };
+let pageOffset = 0;
+const PAGE_LIMIT = 10;
+let isLoading = false;
+let hasMore = true;
 
 // Initialize
 async function init() {
@@ -30,7 +35,12 @@ async function init() {
     chrome.runtime.sendMessage({ type: 'SIDEBAR_READY' });
 
     await initTheme(); // Initialize theme
-    await loadNotes();
+
+    // Setup Infinite Scroll
+    setupInfiniteScroll();
+
+    await loadNotes(true); // Initial load
+
     setupListeners();
     await processPendingHighlight();
 }
@@ -59,20 +69,20 @@ function setupListeners() {
     urlToggleBtn.addEventListener('click', () => {
         currentFilter.urlOnly = !currentFilter.urlOnly;
         urlToggleBtn.classList.toggle('active', currentFilter.urlOnly);
-        loadNotes();
+        loadNotes(true);
     });
 
     searchInput.addEventListener('input', (e) => {
         currentFilter.text = e.target.value.toLowerCase();
         clearFiltersBtn.style.display = currentFilter.text ? 'block' : 'none';
-        loadNotes();
+        loadNotes(true);
     });
 
     clearFiltersBtn.addEventListener('click', () => {
         searchInput.value = '';
         currentFilter.text = '';
         clearFiltersBtn.style.display = 'none';
-        loadNotes();
+        loadNotes(true);
     });
 
     document.addEventListener('keydown', (e) => {
@@ -91,7 +101,7 @@ function setupListeners() {
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if (tabId === currentTabId && changeInfo.url) {
             currentUrl = changeInfo.url;
-            if (currentFilter.urlOnly) loadNotes();
+            if (currentFilter.urlOnly) loadNotes(true);
         }
     });
 
@@ -99,12 +109,12 @@ function setupListeners() {
         const tab = await chrome.tabs.get(activeInfo.tabId);
         currentUrl = tab.url;
         currentTabId = tab.id;
-        if (currentFilter.urlOnly) loadNotes();
+        if (currentFilter.urlOnly) loadNotes(true);
     });
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.type === 'REFRESH_NOTES') {
-            loadNotes();
+            loadNotes(true);
         } else if (message.type === 'PROCESS_PENDING_HIGHLIGHT') {
             processPendingHighlight();
         } else if (message.type === 'CREATE_HIGHLIGHT_NOTE') {
@@ -122,7 +132,7 @@ async function createNewHighlightNote(text, url) {
         tags: []
     };
     const noteId = await saveNote(note);
-    await loadNotes();
+    loadNotes(true);
 
     // Put the newly created note in editing mode
     setTimeout(() => {
@@ -158,7 +168,7 @@ async function handleSave() {
 
     await saveNote(note);
     editor.innerHTML = '';
-    loadNotes();
+    loadNotes(true);
 }
 
 function extractTags(text) {
@@ -166,27 +176,105 @@ function extractTags(text) {
     return matches ? [...new Set(matches.map(t => t.slice(1)))] : [];
 }
 
-async function loadNotes() {
-    let notes = await getAllNotes();
-
-    if (currentFilter.urlOnly && !currentFilter.text) {
-        const currentBaseUrl = currentUrl.split('#')[0];
-        notes = notes.filter(n => n.url.split('#')[0] === currentBaseUrl);
+async function loadNotes(reset = false) {
+    if (isLoading) return;
+    if (reset) {
+        pageOffset = 0;
+        hasMore = true;
+        notesList.innerHTML = '';
+        const sentinel = document.getElementById('sentinel');
+        if (sentinel) sentinel.style.display = 'block'; // Ensure sentinel is visible for reset
     }
+    if (!hasMore) return;
 
-    if (currentFilter.text) {
-        notes = notes.filter(n =>
-            n.content.toLowerCase().includes(currentFilter.text) ||
-            n.tags.some(t => t.toLowerCase().includes(currentFilter.text.replace('#', '')))
-        );
+    isLoading = true;
+    loadingIndicator.classList.remove('hidden');
+
+    try {
+        let notes = [];
+
+        // If we are filtering, we fallback to client-side filtering of all notes for now because IndexedDB search is complex
+        // Optimization: If no filter text/url, use pagination
+        const isFiltering = currentFilter.text || currentFilter.urlOnly;
+
+        if (isFiltering) {
+            // Optimized: Only load all if it's the first page or we need to filter
+            // Ideally we should cache 'allNotes' if filtering but for now:
+            const allNotes = await getAllNotes();
+            let filtered = allNotes;
+
+            if (currentFilter.urlOnly) {
+                const currentBaseUrl = currentUrl.split('#')[0];
+                filtered = filtered.filter(n => n.url.split('#')[0] === currentBaseUrl);
+            }
+
+            if (currentFilter.text) {
+                filtered = filtered.filter(n =>
+                    n.content.toLowerCase().includes(currentFilter.text) ||
+                    n.tags.some(t => t.toLowerCase().includes(currentFilter.text.replace('#', '')))
+                );
+            }
+
+            filtered.sort((a, b) => b.timestamp - a.timestamp);
+
+            // Fetch LIMIT + 1 to check if there are more
+            const sliced = filtered.slice(pageOffset, pageOffset + PAGE_LIMIT + 1);
+
+            if (sliced.length > PAGE_LIMIT) {
+                hasMore = true;
+                notes = sliced.slice(0, PAGE_LIMIT);
+            } else {
+                hasMore = false;
+                notes = sliced;
+            }
+
+        } else {
+            // Default View: Use DB Pagination
+            // Fetch LIMIT + 1 to check if there are more
+            const fetchedWithPeek = await getRecentNotes(PAGE_LIMIT + 1, pageOffset);
+
+            if (fetchedWithPeek.length > PAGE_LIMIT) {
+                hasMore = true;
+                notes = fetchedWithPeek.slice(0, PAGE_LIMIT);
+            } else {
+                hasMore = false;
+                notes = fetchedWithPeek;
+            }
+        }
+
+        if (notes.length > 0) {
+            renderNotes(notes);
+            pageOffset += notes.length;
+        }
+
+        // If no more notes, hide sentinel to prevent observer triggering
+        if (!hasMore) {
+            const sentinel = document.getElementById('sentinel');
+            if (sentinel) sentinel.style.display = 'none';
+        }
+
+    } catch (e) {
+        console.error(e);
+    } finally {
+        isLoading = false;
+        loadingIndicator.classList.add('hidden');
     }
+}
 
-    renderNotes(notes);
+function setupInfiniteScroll() {
+    const sentinel = document.getElementById('sentinel');
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !isLoading && hasMore) {
+            loadNotes(false);
+        }
+    }, { root: null, rootMargin: '50px' });
+
+    if (sentinel) observer.observe(sentinel);
 }
 
 function renderNotes(notes) {
-    notesList.innerHTML = '';
-    notes.sort((a, b) => b.timestamp - a.timestamp).forEach(note => {
+    // Note: notesList.innerHTML is cleared in loadNotes(true)
+    notes.forEach(note => {
         const noteEl = document.createElement('div');
         noteEl.className = 'note-item';
         noteEl.dataset.id = note.id;
@@ -234,7 +322,7 @@ function renderNotes(notes) {
             const newHtml = this.innerHTML;
             const newTags = extractTags(newContent);
             await saveNote({ ...note, content: newContent, html: newHtml, tags: newTags });
-            loadNotes();
+            // Don't full reload, just keep it there
         });
 
         noteEl.querySelector('.note-link').addEventListener('click', (e) => {
@@ -257,7 +345,7 @@ function renderNotes(notes) {
 async function handleDelete(id) {
     if (confirm('Delete this note?')) {
         await deleteNote(parseInt(id));
-        loadNotes();
+        document.querySelector(`.note-item[data-id="${id}"]`).remove();
     }
 }
 

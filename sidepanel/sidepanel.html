@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <title>NeoNote</title>
+    <link rel="stylesheet" href="../styles/variables.css">
+    <link rel="stylesheet" href="../styles/components.css">
     <link rel="stylesheet" href="sidepanel.css">
 </head>
 
@@ -49,6 +51,12 @@
 
             <div id="notes-list">
                 <!-- Notes will be injected here -->
+            </div>
+            <div id="sentinel"></div>
+            <div id="loading-indicator" class="hidden">
+                <svg class="spinner" viewBox="0 0 50 50">
+                    <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                </svg>
             </div>
         </main>
     </div>

@@ -72,3 +72,43 @@ export async function getNotesByUrl(url) {
         request.onerror = () => reject(request.error);
     });
 }
+
+export async function getRecentNotes(limit = 10, offset = 0) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const index = store.index('timestamp');
+
+        // Open a cursor in reverse order (newest first)
+        const request = index.openCursor(null, 'prev');
+        const notes = [];
+        let hasSkipped = false;
+        let count = 0;
+
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (!cursor) {
+                resolve(notes);
+                return;
+            }
+
+            if (!hasSkipped && offset > 0) {
+                hasSkipped = true;
+                cursor.advance(offset);
+                return;
+            }
+
+            notes.push(cursor.value);
+            count++;
+
+            if (count < limit) {
+                cursor.continue();
+            } else {
+                resolve(notes);
+            }
+        };
+
+        request.onerror = () => reject(request.error);
+    });
+}

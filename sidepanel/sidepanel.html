@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>NeoNote</title>
+    <link rel="stylesheet" href="sidepanel.css">
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <div class="search-wrapper">
+                <button id="open-home" class="icon-btn" title="Open Home Dashboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </button>
+                <button id="toggle-url-filter" class="icon-btn active" title="Show notes for this page only">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="13 2 13 9 20 9"></polyline>
+                    </svg>
+                </button>
+                <input type="text" id="search" placeholder="Search...">
+                <span id="clear-filters" class="clear-icon" style="display: none;">×</span>
+            </div>
+        </header>
+
+        <main>
+            <div id="note-editor">
+                <div id="editor-content" contenteditable="true" placeholder="What's on your mind? ..."></div>
+                <div id="tag-suggestions" class="suggestions hidden"></div>
+                <div class="editor-actions">
+                    <!-- Could add helper icons here (image, list, etc) -->
+                    <div></div>
+                    <button id="save-note">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="notes-list">
+                <!-- Notes will be injected here -->
+            </div>
+        </main>
+    </div>
+    <script type="module" src="sidepanel.js"></script>
+</body>
+
+</html>

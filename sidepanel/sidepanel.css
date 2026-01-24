@@ -1,0 +1,357 @@
+:root {
+  /* Default to Dark Mode variables (matching Ref 1) */
+  --bg-color: #121212;
+  --sidebar-bg: #1e1e1e;
+  --card-bg: #2c2c2c;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --border-color: #333333;
+  --accent-color: #5d9dfc;
+  /* Flomo-ish blue */
+  --highlight-bg: rgba(93, 157, 252, 0.2);
+  --tag-bg: rgba(93, 157, 252, 0.15);
+  --tag-text: #66b2ff;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --card-radius: 12px;
+  --input-bg: #2c2c2c;
+  --icon-hover: rgba(255, 255, 255, 0.1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Light Mode variables */
+    --bg-color: #f7f7f7;
+    --sidebar-bg: #f0f0f0;
+    --card-bg: #ffffff;
+    --text-primary: #333333;
+    --text-secondary: #888888;
+    --border-color: #e0e0e0;
+    /* Subtle border */
+    --accent-color: #0066cc;
+    --highlight-bg: rgba(0, 102, 204, 0.1);
+    --tag-bg: #e6f0ff;
+    --tag-text: #0066cc;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    /* Softer shadow */
+    --input-bg: #ffffff;
+    --icon-hover: rgba(0, 0, 0, 0.05);
+  }
+}
+
+html[data-theme="light"] {
+  --bg-color: #f7f7f7;
+  --sidebar-bg: #f0f0f0;
+  --card-bg: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #888888;
+  --border-color: #e0e0e0;
+  --accent-color: #0066cc;
+  --highlight-bg: rgba(0, 102, 204, 0.1);
+  --tag-bg: #e6f0ff;
+  --tag-text: #0066cc;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --input-bg: #ffffff;
+  --icon-hover: rgba(0, 0, 0, 0.05);
+}
+
+html[data-theme="dark"] {
+  --bg-color: #121212;
+  --sidebar-bg: #1e1e1e;
+  --card-bg: #2c2c2c;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --border-color: #333333;
+  --accent-color: #5d9dfc;
+  --highlight-bg: rgba(93, 157, 252, 0.2);
+  --tag-bg: rgba(93, 157, 252, 0.15);
+  --tag-text: #66b2ff;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --card-radius: 12px;
+  --input-bg: #2c2c2c;
+  --icon-hover: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Header */
+header {
+  padding: 12px 16px;
+  background-color: var(--bg-color);
+  /* Match body bg */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--input-bg);
+  border-radius: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  /* Subtle border */
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background-color: var(--icon-hover);
+  color: var(--text-primary);
+}
+
+.icon-btn.active {
+  color: var(--accent-color);
+  background-color: var(--tag-bg);
+}
+
+input#search {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 8px;
+  font-size: 14px;
+  outline: none;
+  min-width: 0;
+}
+
+input#search::placeholder {
+  color: var(--text-secondary);
+}
+
+.clear-icon {
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Main Content */
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* Space between editor and list */
+}
+
+/* Editor Card */
+#note-editor {
+  background-color: var(--card-bg);
+  border-radius: var(--card-radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  /* Subtle shadow for elevation */
+  position: relative;
+  border: 1px solid var(--border-color);
+  /* Optional border */
+}
+
+#editor-content {
+  min-height: 80px;
+  outline: none;
+  font-size: 15px;
+  /* Slightly larger for readability */
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+#editor-content:empty:before {
+  content: attr(placeholder);
+  color: var(--text-secondary);
+  cursor: text;
+}
+
+/* Editor Toolbar/Actions */
+.editor-actions {
+  display: flex;
+  justify-content: space-between;
+  /* Space out tools and button */
+  align-items: center;
+  margin-top: 12px;
+  /* Add a top divider if desired, but clean is better */
+}
+
+#save-note {
+  background-color: var(--accent-color);
+  /* Theme accent */
+  color: #fff;
+  /* Always white text on accent */
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.2s;
+}
+
+#save-note:hover {
+  opacity: 0.9;
+}
+
+/* Note List */
+#notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-item {
+  background-color: var(--card-bg);
+  border-radius: var(--card-radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.note-item:hover {
+  /* transform: translateY(-1px); */
+  /* Optional hover effect */
+}
+
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.note-timestamp {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.note-actions-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.note-actions-btn:hover {
+  background-color: var(--icon-hover);
+  color: var(--text-primary);
+}
+
+.note-content {
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+}
+
+.inline-tag {
+  color: var(--tag-text);
+  background-color: var(--tag-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin: 0 2px;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.highlight-quote {
+  border-left: 3px solid var(--accent-color);
+  background-color: var(--highlight-bg);
+  /* Very subtle background for quote */
+  padding: 8px 12px;
+  margin: 8px 0;
+  border-radius: 0 4px 4px 0;
+  color: var(--text-primary);
+  font-style: normal;
+}
+
+.note-footer {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.url-source {
+  font-size: 12px;
+  color: var(--accent-color);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.url-source:hover {
+  text-decoration: underline;
+}
+
+/* Tag Suggestions */
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+  border-radius: 8px;
+  z-index: 20;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.suggestion-item:hover {
+  background-color: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+/* Utility */
+.hidden {
+  display: none;
+}
+
+img {
+  max-width: 100%;
+  border-radius: 6px;
+  display: block;
+  margin: 8px 0;
+}

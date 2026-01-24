@@ -1,5 +1,6 @@
 import { saveNote, getAllNotes, deleteNote, getNotesByUrl, getRecentNotes } from '../scripts/db.js';
 import { initTheme } from '../scripts/theme.js';
+import { syncToLark } from '../scripts/lark_sync.js';
 
 const searchInput = document.getElementById('search');
 const clearFiltersBtn = document.getElementById('clear-filters');
@@ -8,6 +9,7 @@ const saveBtn = document.getElementById('save-note');
 const notesList = document.getElementById('notes-list');
 const urlToggleBtn = document.getElementById('toggle-url-filter');
 const homeBtn = document.getElementById('open-home');
+const syncBtn = document.getElementById('sync-files');
 const tagSuggestions = document.getElementById('tag-suggestions');
 const loadingIndicator = document.getElementById('loading-indicator');
 
@@ -84,6 +86,31 @@ function setupListeners() {
 
     homeBtn.addEventListener('click', () => {
         chrome.tabs.create({ url: chrome.runtime.getURL('home/home.html') });
+    });
+
+    syncBtn.addEventListener('click', async () => {
+        const svg = syncBtn.querySelector('svg');
+        if (svg.classList.contains('spin')) return;
+
+        const result = await chrome.storage.local.get(['bitableConfig']);
+        const config = result.bitableConfig;
+
+        if (!config || !config.link || !config.token) {
+            alert('Please configure Bitable settings in Home > Settings first.');
+            chrome.tabs.create({ url: chrome.runtime.getURL('home/home.html') });
+            return;
+        }
+
+        try {
+            svg.classList.add('spin');
+            await syncToLark(config.link, config.token);
+            // alert('Sync completed!'); // Optional in sidebar to be less intrusive? No, feedback is good.
+        } catch (e) {
+            console.error(e);
+            alert('Sync failed: ' + e.message);
+        } finally {
+            svg.classList.remove('spin');
+        }
     });
 
     urlToggleBtn.addEventListener('click', () => {

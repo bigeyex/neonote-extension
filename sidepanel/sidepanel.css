@@ -208,7 +208,21 @@ img {
 #loading-indicator {
   display: flex;
   justify-content: center;
-  padding: 10px;
+  padding: 20px;
+}
+
+.sync-btn svg.spin {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinner {

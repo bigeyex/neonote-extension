@@ -1,6 +1,8 @@
 import { getAllNotes, saveNote, deleteNote } from '../scripts/db.js';
 import { initTheme, setTheme, getCurrentTheme, THEMES } from '../scripts/theme.js';
 
+import { syncToLark } from '../scripts/lark_sync.js';
+
 // DOM Elements
 const notesGrid = document.getElementById('notes-grid');
 const searchInput = document.getElementById('search-input');
@@ -11,6 +13,12 @@ const viewDashboard = document.getElementById('view-dashboard');
 const viewSettings = document.getElementById('view-settings');
 const themeSelect = document.getElementById('theme-select');
 const pageTitle = document.getElementById('page-title');
+
+// Bitable Elements
+const bitableLinkInput = document.getElementById('bitable-link');
+const personalTokenInput = document.getElementById('personal-token');
+const saveBitableBtn = document.getElementById('save-bitable-config');
+const syncHomeBtn = document.getElementById('sync-home');
 
 let allNotes = [];
 let currentFilter = { text: '', tag: null };
@@ -26,19 +34,34 @@ async function init() {
     // Setup Shortcut settings
     await setupShortcutSettings();
 
+    // Setup Bitable Settings
+    await setupBitableSettings();
+
     // Load data
     await refreshNotes();
 
     setupListeners();
 }
 
+async function setupBitableSettings() {
+    const result = await chrome.storage.local.get(['bitableConfig']);
+    const config = result.bitableConfig || {};
+    if (config.link) bitableLinkInput.value = config.link;
+    if (config.token) personalTokenInput.value = config.token;
+
+    saveBitableBtn.addEventListener('click', async () => {
+        const link = bitableLinkInput.value.trim();
+        const token = personalTokenInput.value.trim();
+        await chrome.storage.local.set({ bitableConfig: { link, token } });
+        alert('Configuration saved!');
+    });
+}
+
 function setupListeners() {
     // Navigation
-
     navSettings.addEventListener('click', () => switchView('settings'));
 
     // Search
-    // Search: switch to dashboard and filter
     searchInput.addEventListener('input', (e) => {
         currentFilter.text = e.target.value.toLowerCase();
         switchView('dashboard');
@@ -47,6 +70,32 @@ function setupListeners() {
 
     searchInput.addEventListener('focus', () => {
         switchView('dashboard');
+    });
+
+    // Sync
+    syncHomeBtn.addEventListener('click', async () => {
+        const svg = syncHomeBtn.querySelector('svg');
+        if (svg.classList.contains('spin')) return;
+
+        const result = await chrome.storage.local.get(['bitableConfig']);
+        const config = result.bitableConfig;
+
+        if (!config || !config.link || !config.token) {
+            alert('Please configure Bitable settings first.');
+            switchView('settings');
+            return;
+        }
+
+        try {
+            svg.classList.add('spin');
+            await syncToLark(config.link, config.token);
+            alert('Sync completed successfully!');
+        } catch (e) {
+            console.error(e);
+            alert('Sync failed: ' + e.message);
+        } finally {
+            svg.classList.remove('spin');
+        }
     });
 }
 

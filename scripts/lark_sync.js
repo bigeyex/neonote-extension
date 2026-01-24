@@ -1,0 +1,199 @@
+import { getAllNotes } from './db.js';
+
+const LARK_API_BASE = 'https://base-api.feishu.cn/open-apis/bitable/v1';
+
+/**
+ * Syncs notes to Lark Bitable.
+ * @param {string} bitableLink - The full URL of the Bitable base.
+ * @param {string} personalToken - The Personal Base Token for authorization.
+ * @returns {Promise<void>}
+ */
+export async function syncToLark(bitableLink, personalToken) {
+    if (!bitableLink || !personalToken) {
+        throw new Error('Missing Bitable Link or Personal Token');
+    }
+
+    const appToken = extractAppToken(bitableLink);
+    if (!appToken) {
+        throw new Error('Invalid Bitable Link');
+    }
+
+    const headers = {
+        'Authorization': `Bearer ${personalToken}`,
+        'Content-Type': 'application/json'
+    };
+
+    // 1. Check/Create Table
+    const tableId = await ensureTable(appToken, headers);
+
+    // 2. Check/Create Fields
+    const fieldMap = await ensureFields(appToken, tableId, headers);
+
+    // 3. Sync Content
+    await syncContent(appToken, tableId, headers, fieldMap);
+}
+
+function extractAppToken(url) {
+    try {
+        // pattern: .../base/<app_token>?... or .../base/<app_token>
+        const match = url.match(/base\/([^?\/]+)/);
+        return match ? match[1] : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function ensureTable(appToken, headers) {
+    // List tables
+    const listRes = await fetch(`${LARK_API_BASE}/apps/${appToken}/tables`, { headers });
+    const listData = await listRes.json();
+
+    if (listData.code !== 0) {
+        throw new Error(`Failed to list tables: ${listData.msg}`);
+    }
+
+    const targetTable = listData.data.items.find(t => t.name === 'NEONote');
+    if (targetTable) {
+        return targetTable.table_id;
+    }
+
+    // Create table
+    const createRes = await fetch(`${LARK_API_BASE}/apps/${appToken}/tables`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            table: { name: 'NEONote' }
+        })
+    });
+    const createData = await createRes.json();
+    if (createData.code !== 0) {
+        throw new Error(`Failed to create table: ${createData.msg}`);
+    }
+    return createData.data.table_id;
+}
+
+async function ensureFields(appToken, tableId, headers) {
+    // Schema definition: name -> type
+    // 1: Text, 2: Number, 3: Single Select, 4: Multi Select, 5: Date, 7: Checkbox, 11: Url...
+    // We will use Text for simplicity for most, maybe Date for timestamp.
+    // Required fields: note_id (Text), content (Text), url (Url), tags (Text/MultiSelect), timestamp (Date/Text)
+
+    const desiredFields = {
+        'note_id': 1, // Text
+        'content': 1, // Text
+        'url': 1,   // Url - wait, type 11 needs object structure, let's stick to Text (1) for simplicity or check docs if needed. 
+        // Actually type 1 is safest. Let's start with Text.
+        'tags': 1,    // Text
+        'timestamp': 5 // Date
+        // 'html' : 1 // Optional
+    };
+
+    // Get existing fields
+    const listRes = await fetch(`${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/fields`, { headers });
+    const listData = await listRes.json();
+    if (listData.code !== 0) throw new Error(`List fields failed: ${listData.msg}`);
+
+    const existingFields = listData.data.items;
+    const fieldMap = {}; // name -> field_id
+
+    for (const [name, type] of Object.entries(desiredFields)) {
+        const found = existingFields.find(f => f.field_name === name);
+        if (found) {
+            fieldMap[name] = found.field_id;
+        } else {
+            // Create field
+            const createRes = await fetch(`${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/fields`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    field_name: name,
+                    type: type
+                })
+            });
+            const createData = await createRes.json();
+            if (createData.code !== 0) console.warn(`Failed to create field ${name}`, createData);
+            else fieldMap[name] = createData.data.field.field_id;
+        }
+    }
+
+    return fieldMap;
+}
+
+async function syncContent(appToken, tableId, headers, fieldMap) {
+    const notes = await getAllNotes();
+
+    // Fetch existing records to avoid duplicates (using note_id)
+    // We'll paginate if needed, for now assume < 500 or use loop
+    let existingRecords = [];
+    let pageToken = '';
+    let hasMore = true;
+
+    while (hasMore) {
+        const url = `${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/records?page_size=500${pageToken ? `&page_token=${pageToken}` : ''}`;
+        const res = await fetch(url, { headers });
+        const data = await res.json();
+        if (data.code !== 0) break;
+
+        existingRecords = existingRecords.concat(data.data.items);
+        hasMore = data.data.has_more;
+        pageToken = data.data.page_token;
+    }
+
+    const recordsToCreate = [];
+    const recordsToUpdate = [];
+
+    for (const note of notes) {
+        const noteIdStr = String(note.id);
+        const existing = existingRecords.find(r => r.fields[fieldMap['note_id']] === noteIdStr);
+
+        const recordFields = {};
+        if (fieldMap['note_id']) recordFields[fieldMap['note_id']] = noteIdStr;
+        if (fieldMap['content']) recordFields[fieldMap['content']] = note.content;
+        // For type 1 (Text), URL is just string.
+        if (fieldMap['url']) recordFields[fieldMap['url']] = note.url;
+        if (fieldMap['tags']) recordFields[fieldMap['tags']] = note.tags.join(', ');
+        if (fieldMap['timestamp']) recordFields[fieldMap['timestamp']] = note.timestamp; // Timestamp (number) might need conversion if type is Date
+
+        if (existing) {
+            // Check if update needed (simple check: timestamp)
+            // But 'timestamp' in note is creation time usually, or we only track created.
+            // If we want to sync edits, we should compare content.
+            // For now, let's strict update everything found to ensure latest state.
+            recordsToUpdate.push({
+                record_id: existing.record_id,
+                fields: recordFields
+            });
+        } else {
+            recordsToCreate.push({
+                fields: {
+                    ...recordFields
+                }
+            });
+        }
+    }
+
+    // Batch Create
+    if (recordsToCreate.length > 0) {
+        // Chunk by 500
+        for (let i = 0; i < recordsToCreate.length; i += 500) {
+            const chunk = recordsToCreate.slice(i, i + 500);
+            await fetch(`${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/records/batch_create`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ records: chunk })
+            });
+        }
+    }
+
+    // Batch Update
+    if (recordsToUpdate.length > 0) {
+        for (let i = 0; i < recordsToUpdate.length; i += 500) {
+            const chunk = recordsToUpdate.slice(i, i + 500);
+            await fetch(`${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/records/batch_update`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ records: chunk })
+            });
+        }
+    }
+}

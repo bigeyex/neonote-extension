@@ -30,7 +30,13 @@ export async function syncToLark(bitableLink, personalToken) {
     const fieldMap = await ensureFields(appToken, tableId, headers);
 
     // 3. Sync Content
-    await syncContent(appToken, tableId, headers, fieldMap);
+    const syncResult = await chrome.storage.local.get(['lastSyncTime']);
+    const lastSyncTime = syncResult.lastSyncTime || 0;
+
+    await syncContent(appToken, tableId, headers, fieldMap, lastSyncTime);
+
+    // 4. Update lastSyncTime
+    await chrome.storage.local.set({ 'lastSyncTime': Date.now() });
 }
 
 function extractAppToken(url) {
@@ -119,17 +125,25 @@ async function ensureFields(appToken, tableId, headers) {
     return fieldMap;
 }
 
-async function syncContent(appToken, tableId, headers, fieldMap) {
-    const notes = await getAllNotes();
+async function syncContent(appToken, tableId, headers, fieldMap, lastSyncTime = 0) {
+    const allNotes = await getAllNotes();
+    const notesToSync = allNotes.filter(n => n.timestamp > lastSyncTime);
+
+    if (notesToSync.length === 0) {
+        console.log('No notes updated since last sync.');
+        return;
+    }
 
     // Fetch existing records to avoid duplicates (using note_id)
-    // We'll paginate if needed, for now assume < 500 or use loop
     let existingRecords = [];
     let pageToken = '';
     let hasMore = true;
 
+    // Use sorting as requested by user
+    const sortParam = encodeURIComponent(JSON.stringify(["timestamp DESC"]));
+
     while (hasMore) {
-        const url = `${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/records?page_size=500${pageToken ? `&page_token=${pageToken}` : ''}`;
+        const url = `${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/records?page_size=500&sort=${sortParam}${pageToken ? `&page_token=${pageToken}` : ''}`;
         const res = await fetch(url, { headers });
         const data = await res.json();
         if (data.code !== 0 || !data.data || !data.data.items) {
@@ -145,7 +159,7 @@ async function syncContent(appToken, tableId, headers, fieldMap) {
     const recordsToCreate = [];
     const recordsToUpdate = [];
 
-    for (const note of notes) {
+    for (const note of notesToSync) {
         const noteIdStr = String(note.id);
 
         // Record lookup using field name 'note_id'

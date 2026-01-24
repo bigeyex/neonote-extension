@@ -42,6 +42,7 @@ body {
     color: var(--text-primary);
     font-size: 14px;
     outline: none;
+    box-sizing: border-box;
 }
 
 #search-input:focus {
@@ -153,11 +154,10 @@ body {
     color: var(--text-primary);
 }
 
-/* Notes Grid */
+/* Notes Grid (Masonry using CSS Columns) */
 #notes-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 24px;
+    column-count: 3;
+    column-gap: 24px;
 }
 
 /* Override Note Item for Grid */
@@ -165,11 +165,26 @@ body {
     height: auto;
     display: flex;
     flex-direction: column;
+    break-inside: avoid;
+    margin-bottom: 24px;
+    /* Space between items in column */
 }
 
 .note-content {
     flex: 1;
     /* Expand to fill height */
+}
+
+@media (max-width: 1000px) {
+    #notes-grid {
+        column-count: 2;
+    }
+}
+
+@media (max-width: 600px) {
+    #notes-grid {
+        column-count: 1;
+    }
 }
 
 /* Settings View */

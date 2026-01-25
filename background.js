@@ -4,20 +4,21 @@ chrome.sidePanel
 
 let isSidebarOpen = false;
 
-// Initial state sync
-chrome.storage.local.get('sidebarOpen', (result) => {
-    isSidebarOpen = !!result.sidebarOpen;
+// Track sidepanel presence via port
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === 'sidepanel') {
+        isSidebarOpen = true;
+        chrome.storage.local.set({ sidebarOpen: true });
+        port.onDisconnect.addListener(() => {
+            isSidebarOpen = false;
+            chrome.storage.local.set({ sidebarOpen: false });
+        });
+    }
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'OPEN_SIDEBAR') {
         chrome.sidePanel.open({ windowId: sender.tab.windowId });
-    } else if (message.type === 'SIDEBAR_READY') {
-        isSidebarOpen = true;
-        chrome.storage.local.set({ sidebarOpen: true });
-    } else if (message.type === 'SIDEBAR_CLOSED') {
-        isSidebarOpen = false;
-        chrome.storage.local.set({ sidebarOpen: false });
     } else if (message.type === 'ADD_HIGHLIGHT_NOTE') {
         safeSendMessage({
             type: 'CREATE_HIGHLIGHT_NOTE',
@@ -38,18 +39,11 @@ chrome.commands.onCommand.addListener((command, tab) => {
 });
 
 function toggleSidebar(tab, selectionText = null) {
-    if (isSidebarOpen) {
-        // Attempt to close.
-        safeSendMessage({ type: 'CLOSE_SIDEBAR_REQUEST' }).then(sent => {
-            if (!sent) {
-                // If message failed, sidebar is already closed. 
-                // Sync our local state so the NEXT press will open it.
-                isSidebarOpen = false;
-                chrome.storage.local.set({ sidebarOpen: false });
-            }
-        });
+    if (isSidebarOpen && !selectionText) {
+        // If already open and no new selection, toggle means CLOSE.
+        safeSendMessage({ type: 'CLOSE_SIDEBAR_REQUEST' });
     } else {
-        // Open MUST be synchronous with the message/command to keep the gesture
+        // If closed, or if we have new selection to process, OPEN/FOCUS.
         openSidebarWithQuote(tab, selectionText);
     }
 }

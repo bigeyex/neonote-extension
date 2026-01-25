@@ -35,8 +35,8 @@ async function init() {
         console.error('Failed to get active tab:', e);
     }
 
-    // Notify that sidebar is ready
-    chrome.runtime.sendMessage({ type: 'SIDEBAR_READY' });
+    // Connect port to background for state tracking
+    chrome.runtime.connect({ name: 'sidepanel' });
 
     await initTheme(); // Initialize theme
 
@@ -50,10 +50,7 @@ async function init() {
     await processPendingQuote();
 }
 
-// Notify when sidebar closes
-window.addEventListener('beforeunload', () => {
-    chrome.runtime.sendMessage({ type: 'SIDEBAR_CLOSED' });
-});
+// Notify when sidebar closes removed - handled by port disconnection
 
 async function processPendingHighlight() {
     const result = await chrome.storage.local.get('pendingHighlight');

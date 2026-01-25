@@ -145,3 +145,10 @@ function matchesShortcut(event, shortcutString) {
         event.altKey === alt &&
         event.shiftKey === shift;
 }
+
+// Add Ping detector
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'PING') {
+        sendResponse({ status: 'OK' });
+    }
+});

@@ -14,6 +14,9 @@ const homeBtn = document.getElementById('open-home');
 const syncBtn = document.getElementById('sync-files');
 const tagSuggestions = document.getElementById('tag-suggestions');
 const loadingIndicator = document.getElementById('loading-indicator');
+const recentTagsContainer = document.getElementById('recent-tags');
+
+let recentTags = [];
 
 let currentUrl = '';
 let currentTabId = null;
@@ -44,10 +47,15 @@ async function init() {
     setupInfiniteScroll();
 
     await loadNotes(true); // Initial load
+    await updateRecentTags();
 
     setupListeners();
     await processPendingHighlight();
     await processPendingQuote();
+
+    if (currentTabId) {
+        await ensureHighlighterInTab(currentTabId);
+    }
 }
 
 // Notify when sidebar closes removed - handled by port disconnection
@@ -139,6 +147,15 @@ function setupListeners() {
                 handleDelete(selected.dataset.id);
             }
         }
+
+        // Command + Shift + 1-5 for recent tags
+        if (e.metaKey && e.shiftKey && e.code >= 'Digit1' && e.code <= 'Digit5') {
+            const index = parseInt(e.code.replace('Digit', '')) - 1;
+            if (recentTags[index]) {
+                e.preventDefault();
+                insertRecentTag(recentTags[index]);
+            }
+        }
     });
 
     editor.addEventListener('paste', (e) => handleCleanPaste(e, editor));
@@ -160,6 +177,7 @@ function setupListeners() {
         if (tabId === currentTabId && changeInfo.url) {
             currentUrl = changeInfo.url;
             if (currentFilter.urlOnly) loadNotes(true);
+            ensureHighlighterInTab(tabId);
         }
     });
 
@@ -168,6 +186,7 @@ function setupListeners() {
         currentUrl = tab.url;
         currentTabId = tab.id;
         if (currentFilter.urlOnly) loadNotes(true);
+        ensureHighlighterInTab(currentTabId);
     });
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -253,6 +272,7 @@ async function handleSave() {
     await saveNote(note);
     editor.innerHTML = '';
     loadNotes(true);
+    await updateRecentTags();
 }
 
 function extractTags(text) {
@@ -410,6 +430,7 @@ function renderNotes(notes) {
             const newHtml = this.innerHTML;
             const newTags = extractTags(newContent);
             await saveNote({ ...note, content: newContent, html: newHtml, tags: newTags });
+            await updateRecentTags();
             // Don't full reload, just keep it there
         });
 
@@ -437,7 +458,9 @@ function renderNotes(notes) {
 async function handleDelete(id) {
     if (confirm('Delete this note?')) {
         await deleteNote(parseInt(id));
-        document.querySelector(`.note-item[data-id="${id}"]`).remove();
+        const el = document.querySelector(`.note-item[data-id="${id}"]`);
+        if (el) el.remove();
+        await updateRecentTags();
     }
 }
 
@@ -512,6 +535,95 @@ function showSuggestions(suggestions) {
         tagSuggestions.appendChild(item);
     });
     tagSuggestions.classList.remove('hidden');
+}
+
+async function updateRecentTags() {
+    try {
+        const allNotes = await getAllNotes();
+        // Sort by timestamp desc to get truly recent ones
+        allNotes.sort((a, b) => b.timestamp - a.timestamp);
+
+        const tags = [];
+        const seen = new Set();
+
+        for (const note of allNotes) {
+            if (note.tags) {
+                for (const tag of note.tags) {
+                    if (!seen.has(tag)) {
+                        seen.add(tag);
+                        tags.push(tag);
+                        if (tags.length >= 5) break;
+                    }
+                }
+            }
+            if (tags.length >= 5) break;
+        }
+
+        recentTags = tags;
+        renderRecentTags();
+    } catch (e) {
+        console.error('Failed to update recent tags:', e);
+    }
+}
+
+function renderRecentTags() {
+    recentTagsContainer.innerHTML = '';
+    recentTags.forEach((tag, index) => {
+        const tagEl = document.createElement('div');
+        tagEl.className = 'recent-tag';
+        tagEl.innerHTML = `<span class="recent-tag-index">${index + 1}</span>${tag}`;
+        tagEl.title = `Cmd + Shift + ${index + 1} to insert`;
+        tagEl.onclick = () => insertRecentTag(tag);
+        recentTagsContainer.appendChild(tagEl);
+    });
+}
+
+function insertRecentTag(tag) {
+    editor.focus();
+    // Insert at cursor if possible, else append
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+        document.execCommand('insertText', false, ` #${tag} `);
+    } else {
+        editor.innerText += ` #${tag} `;
+    }
+    // Trigger input event to update suggestions if needed
+    editor.dispatchEvent(new Event('input'));
+}
+
+async function ensureHighlighterInTab(tabId) {
+    if (!tabId) return;
+
+    // Skip for non-web pages
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
+            return;
+        }
+    } catch (e) {
+        return;
+    }
+
+    try {
+        // Try to ping the content script
+        await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+        console.log('Highlighter is alive in tab:', tabId);
+    } catch (e) {
+        // If ping fails, inject the script
+        console.log('Highlighter not found in tab, injecting...', tabId);
+        try {
+            await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ['content/content.js']
+            });
+            await chrome.scripting.insertCSS({
+                target: { tabId: tabId },
+                files: ['content/content.css']
+            });
+        } catch (err) {
+            console.error('Failed to inject highlighter:', err);
+        }
+    }
 }
 
 init();

@@ -105,6 +105,27 @@ body {
     color: var(--accent-color);
 }
 
+.tag-shortcut-index {
+    background-color: var(--border-color);
+    color: var(--text-secondary);
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-right: 8px;
+    opacity: 0.6;
+}
+
+.tag-item:hover .tag-shortcut-index {
+    background-color: var(--accent-color);
+    color: white;
+    opacity: 1;
+}
+
 .tag-count {
     margin-left: auto;
     font-size: 12px;
@@ -185,6 +206,13 @@ body {
     break-inside: avoid;
     margin-bottom: 24px;
     /* Space between items in column */
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.note-item:hover {
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow);
 }
 
 .note-content {
@@ -202,6 +230,41 @@ body {
     #notes-grid {
         column-count: 1;
     }
+}
+
+/* New Note Card */
+.new-note-card {
+    background-color: var(--card-bg);
+    border: 2px dashed var(--border-color) !important;
+    box-shadow: none !important;
+    transition: border-color 0.2s;
+}
+
+.new-note-card:focus-within {
+    border-color: var(--accent-color) !important;
+    border-style: solid !important;
+}
+
+.new-note-card .note-content.editor {
+    min-height: 80px;
+    outline: none;
+}
+
+.new-note-card .note-content.editor:empty:before {
+    content: attr(placeholder);
+    color: var(--text-secondary);
+    cursor: text;
+}
+
+.new-note-card .note-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+.new-note-card .save-btn {
+    padding: 4px 12px;
+    font-size: 13px;
 }
 
 /* Settings View */

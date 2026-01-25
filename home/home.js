@@ -27,6 +27,8 @@ const syncHomeBtn = document.getElementById('sync-home');
 let allNotes = [];
 let currentFilter = { text: '', tag: null };
 let toastContainer = null;
+let hoveredNoteId = null;
+let topTags = [];
 
 async function init() {
     await initTheme();
@@ -44,6 +46,9 @@ async function init() {
 
     // Load data
     await refreshNotes();
+
+    // Close sidepanel when home dashboard is opened
+    chrome.runtime.sendMessage({ type: 'CLOSE_SIDEBAR_REQUEST' });
 
     // Check for initial view from hash
     if (window.location.hash === '#settings') {
@@ -95,6 +100,32 @@ function setupListeners() {
 
     searchInput.addEventListener('focus', () => {
         switchView('dashboard');
+    });
+
+    // Hover Shortcuts
+    document.addEventListener('keydown', async (e) => {
+        if (e.metaKey && e.shiftKey && e.code >= 'Digit1' && e.code <= 'Digit5' && hoveredNoteId) {
+            const index = parseInt(e.code.replace('Digit', '')) - 1;
+            const tag = topTags[index];
+            if (tag) {
+                e.preventDefault();
+                if (hoveredNoteId === 'NEW_NOTE') {
+                    // Logic for NEW NOTE editor
+                    const editor = document.querySelector('.new-note-card .note-content.editor');
+                    if (editor) {
+                        const hashtag = `#${tag}`;
+                        if (editor.innerText.includes(hashtag)) {
+                            editor.innerText = editor.innerText.replace(new RegExp(`\\s?${hashtag}\\b`, 'g'), '').trim();
+                        } else {
+                            editor.innerText = `${hashtag} ${editor.innerText}`;
+                        }
+                        editor.dispatchEvent(new Event('input'));
+                    }
+                } else {
+                    await toggleTagForNote(hoveredNoteId, tag);
+                }
+            }
+        }
     });
 
     // Sync
@@ -163,6 +194,7 @@ function renderTags() {
 
     // Sort tags by count
     const sortedTags = [...tagsMap.entries()].sort((a, b) => b[1] - a[1]);
+    topTags = sortedTags.slice(0, 5).map(t => t[0]);
 
     tagsList.innerHTML = '';
 
@@ -179,10 +211,16 @@ function renderTags() {
     };
     tagsList.appendChild(allItem);
 
-    sortedTags.forEach(([tag, count]) => {
+    sortedTags.forEach(([tag, count], idx) => {
         const item = document.createElement('div');
         item.className = `tag-item ${currentFilter.tag === tag ? 'active' : ''}`;
-        item.innerHTML = `<span>#${tag}</span><span class="tag-count">${count}</span>`;
+
+        let shortcutIndicator = '';
+        if (idx < 5) {
+            shortcutIndicator = `<span class="tag-shortcut-index" title="Cmd+Shift+${idx + 1} to toggle on hovered note">${idx + 1}</span>`;
+        }
+
+        item.innerHTML = `${shortcutIndicator}<span>#${tag}</span><span class="tag-count">${count}</span>`;
         item.onclick = () => {
             currentFilter.tag = tag;
             pageTitle.textContent = `#${tag}`;
@@ -210,17 +248,29 @@ function renderNotes() {
 
     notesGrid.innerHTML = '';
 
+    // Add New Note card if no text filter is active
+    if (!currentFilter.text) {
+        const initialContent = currentFilter.tag ? `#${currentFilter.tag} ` : '';
+        const newNoteEl = createNewNoteCard(initialContent);
+        notesGrid.appendChild(newNoteEl);
+    }
+
     filtered.sort((a, b) => b.timestamp - a.timestamp).forEach(note => {
         const noteEl = document.createElement('div');
         noteEl.className = 'note-item';
+        noteEl.dataset.id = note.id;
 
-        // Timestamp
+        noteEl.addEventListener('mouseenter', () => { hoveredNoteId = note.id; });
+        noteEl.addEventListener('mouseleave', () => { if (hoveredNoteId === note.id) hoveredNoteId = null; });
         const date = new Date(note.timestamp);
         const dateStr = date.toLocaleString('en-US', {
             month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
         });
 
         let displayHtml = note.html || note.content || '';
+        // Normalize: remove existing spans to avoid double-wrapping
+        displayHtml = displayHtml.replace(/<span class="inline-tag">#(\w+)<\/span>/g, '#$1');
+        // Wrap hashtags
         displayHtml = displayHtml.replace(/#(\w+)/g, '<span class="inline-tag">#$1</span>');
 
         noteEl.innerHTML = `
@@ -248,6 +298,14 @@ function renderNotes() {
             contentEl.focus();
             // Add paste listener for cleaned content
             contentEl.addEventListener('paste', (e) => handleCleanPaste(e, contentEl), { once: true });
+        });
+
+        // Save on Cmd+Enter
+        contentEl.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                contentEl.blur(); // Triggers the blur handler which saves
+            }
         });
 
         contentEl.addEventListener('blur', async () => {
@@ -364,6 +422,88 @@ async function setupShortcutSettings() {
         submitInput.value = settings.submitShortcut;
         chrome.storage.local.set({ settings });
     };
+}
+
+function createNewNoteCard(initialContent = '') {
+    const card = document.createElement('div');
+    card.className = 'note-item new-note-card';
+    card.addEventListener('mouseenter', () => { hoveredNoteId = 'NEW_NOTE'; });
+    card.addEventListener('mouseleave', () => { if (hoveredNoteId === 'NEW_NOTE') hoveredNoteId = null; });
+    card.innerHTML = `
+        <div class="note-header">
+            <span class="note-timestamp">Create New Note</span>
+        </div>
+        <div class="note-content editor" contenteditable="true" placeholder="Type your note here... #tag">${initialContent}</div>
+        <div class="note-footer">
+            <button class="primary-btn save-btn">Save Note</button>
+        </div>
+    `;
+
+    const editor = card.querySelector('.note-content');
+    const saveBtn = card.querySelector('.save-btn');
+
+    saveBtn.addEventListener('click', async () => {
+        const content = editor.innerText.trim();
+        if (!content) return;
+
+        const tags = extractTags(content);
+        const note = {
+            content: content,
+            html: editor.innerHTML,
+            url: '',
+            tags: tags
+        };
+
+        await saveNote(note);
+        editor.innerHTML = '';
+        await refreshNotes();
+        showToast('Note created successfully!');
+    });
+
+    // Handle Cmd+Enter to save
+    editor.addEventListener('keydown', async (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.preventDefault();
+            saveBtn.click();
+        }
+    });
+
+    return card;
+}
+
+async function toggleTagForNote(noteId, tag) {
+    const note = allNotes.find(n => n.id === noteId);
+    if (!note) return;
+
+    let { content, html, tags } = note;
+    const hashtag = `#${tag}`;
+    const hasTag = tags.includes(tag);
+
+    if (hasTag) {
+        // Remove tag
+        const regex = new RegExp(`\\s?${hashtag}\\b`, 'g');
+        content = content.replace(regex, '').trim();
+
+        // Remove the specific tagged span
+        html = html.replace(new RegExp(`\\s?<span class="inline-tag">${hashtag}</span>\\b`, 'g'), '').trim();
+        // Fallback for raw hashtag in html
+        html = html.replace(new RegExp(`\\s?${hashtag}\\b`, 'g'), '').trim();
+
+        // Final cleanup: remove any empty or whitespace-only inline-tag spans that might have been left
+        html = html.replace(/<span class="inline-tag">\s*<\/span>/g, '').trim();
+
+        tags = tags.filter(t => t !== tag);
+    } else {
+        // Add tag
+        content = `${hashtag} ${content}`;
+        // Prepend to HTML as well
+        html = `<span class="inline-tag">${hashtag}</span> ${html}`;
+        tags.push(tag);
+    }
+
+    await saveNote({ ...note, content, html, tags });
+    await refreshNotes();
+    showToast(`${hasTag ? 'Removed' : 'Added'} tag #${tag}`);
 }
 
 function showToast(message, type = 'success') {

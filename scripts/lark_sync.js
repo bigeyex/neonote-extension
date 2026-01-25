@@ -1,4 +1,4 @@
-import { getAllNotes } from './db.js';
+import { getAllNotes, getNoteById, saveNote } from './db.js';
 
 const LARK_API_BASE = 'https://base-api.feishu.cn/open-apis/bitable/v1';
 
@@ -90,8 +90,8 @@ async function ensureFields(appToken, tableId, headers) {
         'url': 1,   // Url - wait, type 11 needs object structure, let's stick to Text (1) for simplicity or check docs if needed. 
         // Actually type 1 is safest. Let's start with Text.
         'tags': 1,    // Text
-        'timestamp': 5 // Date
-        // 'html' : 1 // Optional
+        'timestamp': 5, // Date
+        'html': 1      // Text
     };
 
     // Get existing fields
@@ -126,12 +126,12 @@ async function ensureFields(appToken, tableId, headers) {
 }
 
 async function syncContent(appToken, tableId, headers, fieldMap, lastSyncTime = 0) {
-    const allNotes = await getAllNotes();
-    const notesToSync = allNotes.filter(n => n.timestamp > lastSyncTime);
+    const allLocalNotes = await getAllNotes();
+    const localNotesToSyncUp = allLocalNotes.filter(n => n.timestamp > lastSyncTime);
 
-    if (notesToSync.length === 0) {
+    if (localNotesToSyncUp.length === 0) {
         console.log('No notes updated since last sync.');
-        return;
+        // We still continue to check for sync down if needed, but the current logic is based on existingRecords
     }
 
     // Fetch existing records to avoid duplicates (using note_id)
@@ -159,7 +159,7 @@ async function syncContent(appToken, tableId, headers, fieldMap, lastSyncTime = 
     const recordsToCreate = [];
     const recordsToUpdate = [];
 
-    for (const note of notesToSync) {
+    for (const note of localNotesToSyncUp) {
         const noteIdStr = String(note.id);
 
         // Record lookup using field name 'note_id'
@@ -168,6 +168,7 @@ async function syncContent(appToken, tableId, headers, fieldMap, lastSyncTime = 
         const recordFields = {
             'note_id': noteIdStr,
             'content': note.content || '',
+            'html': note.html || '',
             'url': note.url || '',
             'tags': Array.isArray(note.tags) ? note.tags.join(', ') : '',
             'timestamp': note.timestamp
@@ -212,6 +213,58 @@ async function syncContent(appToken, tableId, headers, fieldMap, lastSyncTime = 
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ records: chunk })
+            });
+        }
+    }
+
+    // --- SYNC DOWN ---
+    // Identify records in Bitable that are newer than lastSyncTime
+    const bitableNotesToSyncDown = existingRecords.filter(r => {
+        const bitableTimestamp = r.fields['timestamp'] || 0;
+        return bitableTimestamp > lastSyncTime;
+    });
+
+    for (const remote of bitableNotesToSyncDown) {
+        const noteId = remote.fields['note_id'];
+        const remoteTimestamp = remote.fields['timestamp'];
+        const remoteContent = remote.fields['content'] || '';
+        const remoteHtml = remote.fields['html'] || '';
+        const remoteUrl = remote.fields['url'] || '';
+        const remoteTags = remote.fields['tags'] ? remote.fields['tags'].split(',').map(t => t.trim()) : [];
+
+        if (noteId) {
+            const local = await getNoteById(noteId);
+            if (!local || remoteTimestamp > local.timestamp) {
+                // Update or create local note
+                await saveNote({
+                    id: parseInt(noteId),
+                    content: remoteContent,
+                    html: remoteHtml,
+                    url: remoteUrl,
+                    tags: remoteTags,
+                    timestamp: remoteTimestamp
+                }, true); // skipTimestampUpdate to preserve Bitable's timestamp
+            }
+        } else {
+            // New record from Bitable (created manually there)
+            // It doesn't have a note_id yet. We'll create it locally and then it will get a note_id.
+            // But wait, if we create it locally now, it might get synced UP later.
+            // To avoid duplication, we should ideally assign the back-synced note a note_id.
+            const savedNoteId = await saveNote({
+                content: remoteContent,
+                html: remoteHtml,
+                url: remoteUrl,
+                tags: remoteTags,
+                timestamp: remoteTimestamp
+            }, true);
+
+            // Update the record in Bitable with the new local ID
+            await fetch(`${LARK_API_BASE}/apps/${appToken}/tables/${tableId}/records/${remote.record_id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({
+                    fields: { 'note_id': String(savedNoteId) }
+                })
             });
         }
     }

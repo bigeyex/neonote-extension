@@ -3,6 +3,7 @@ import { initTheme, setTheme, getCurrentTheme, THEMES } from '../scripts/theme.j
 
 import { syncToLark } from '../scripts/lark_sync.js';
 import { handleCleanPaste } from '../scripts/paste_utils.js';
+import { getHostname } from '../scripts/utils.js';
 
 // DOM Elements
 const notesGrid = document.getElementById('notes-grid');
@@ -90,6 +91,7 @@ function setupListeners() {
         try {
             svg.classList.add('spin');
             await syncToLark(config.link, config.token);
+            await refreshNotes();
             alert('Sync completed successfully!');
         } catch (e) {
             console.error(e);
@@ -195,7 +197,7 @@ function renderNotes() {
             month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
         });
 
-        let displayHtml = note.html;
+        let displayHtml = note.html || note.content || '';
         displayHtml = displayHtml.replace(/#(\w+)/g, '<span class="inline-tag">#$1</span>');
 
         noteEl.innerHTML = `
@@ -206,12 +208,14 @@ function renderNotes() {
         </button>
       </div>
       <div class="note-content" contenteditable="false">${displayHtml}</div>
+      ${note.url ? `
       <div class="note-footer">
         <a href="${note.url}" class="note-link url-source" target="_blank">
            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-           ${new URL(note.url).hostname}
+           ${getHostname(note.url)}
         </a>
       </div>
+      ` : ''}
     `;
 
         // Edit Logic (Simplified)
@@ -235,12 +239,15 @@ function renderNotes() {
             refreshNotes(); // re-render to update tags list
         });
 
-        noteEl.querySelector('.delete-btn').addEventListener('click', async () => {
-            if (confirm('Delete note?')) {
-                await deleteNote(note.id);
-                refreshNotes();
-            }
-        });
+        const deleteBtn = noteEl.querySelector('.delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+                if (confirm('Delete note?')) {
+                    await deleteNote(note.id);
+                    refreshNotes();
+                }
+            });
+        }
 
         notesGrid.appendChild(noteEl);
     });

@@ -21,15 +21,34 @@ export async function openDB() {
     });
 }
 
-export async function saveNote(note) {
+export async function saveNote(note, skipTimestampUpdate = false) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
-        const request = store.put({
-            ...note,
-            timestamp: Date.now()
-        });
+
+        const data = {
+            ...note
+        };
+
+        if (!skipTimestampUpdate) {
+            data.timestamp = Date.now();
+        }
+
+        const request = store.put(data);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+export async function getNoteById(id) {
+    if (!id) return null;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.get(parseInt(id));
 
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);

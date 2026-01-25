@@ -2,6 +2,7 @@ import { saveNote, getAllNotes, deleteNote, getNotesByUrl, getRecentNotes } from
 import { initTheme } from '../scripts/theme.js';
 import { syncToLark } from '../scripts/lark_sync.js';
 import { handleCleanPaste } from '../scripts/paste_utils.js';
+import { getHostname } from '../scripts/utils.js';
 
 const searchInput = document.getElementById('search');
 const clearFiltersBtn = document.getElementById('clear-filters');
@@ -105,7 +106,8 @@ function setupListeners() {
         try {
             svg.classList.add('spin');
             await syncToLark(config.link, config.token);
-            // alert('Sync completed!'); // Optional in sidebar to be less intrusive? No, feedback is good.
+            await loadNotes(true);
+            // alert('Sync completed!'); 
         } catch (e) {
             console.error(e);
             alert('Sync failed: ' + e.message);
@@ -371,7 +373,7 @@ function renderNotes(notes) {
         });
 
         // Format content with inline tags
-        let displayHtml = note.html;
+        let displayHtml = note.html || note.content || '';
         displayHtml = displayHtml.replace(/#(\w+)/g, '<span class="inline-tag">#$1</span>');
 
         noteEl.innerHTML = `
@@ -382,12 +384,14 @@ function renderNotes(notes) {
         </button>
       </div>
       <div class="note-content" contenteditable="false">${displayHtml}</div>
+      ${note.url ? `
       <div class="note-footer">
         <a href="${note.url}" class="note-link url-source" target="_blank">
            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-           ${new URL(note.url).hostname}
+           ${getHostname(note.url)}
         </a>
       </div>
+      ` : ''}
     `;
 
         noteEl.addEventListener('click', (e) => {
@@ -412,16 +416,20 @@ function renderNotes(notes) {
             // Don't full reload, just keep it there
         });
 
-        noteEl.querySelector('.note-link').addEventListener('click', (e) => {
-            e.preventDefault();
-            // Use Text Fragments to locate text
-            let targetUrl = note.url;
-            if (note.highlightText) {
-                const fragment = `#:~:text=${encodeURIComponent(note.highlightText)}`;
-                targetUrl += fragment;
-            }
-            chrome.tabs.create({ url: targetUrl });
-        });
+        const noteLink = noteEl.querySelector('.note-link');
+        if (noteLink) {
+            noteLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!note.url) return;
+                // Use Text Fragments to locate text
+                let targetUrl = note.url;
+                if (note.highlightText) {
+                    const fragment = `#:~:text=${encodeURIComponent(note.highlightText)}`;
+                    targetUrl += fragment;
+                }
+                chrome.tabs.create({ url: targetUrl });
+            });
+        }
 
         noteEl.querySelector('.delete-btn').addEventListener('click', () => handleDelete(note.id));
 

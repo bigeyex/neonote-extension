@@ -19,11 +19,14 @@ const pageTitle = document.getElementById('page-title');
 // Bitable Elements
 const bitableLinkInput = document.getElementById('bitable-link');
 const personalTokenInput = document.getElementById('personal-token');
+const autoSyncEnable = document.getElementById('auto-sync-enable');
+const syncIntervalInput = document.getElementById('sync-interval');
 const saveBitableBtn = document.getElementById('save-bitable-config');
 const syncHomeBtn = document.getElementById('sync-home');
 
 let allNotes = [];
 let currentFilter = { text: '', tag: null };
+let toastContainer = null;
 
 async function init() {
     await initTheme();
@@ -42,6 +45,15 @@ async function init() {
     // Load data
     await refreshNotes();
 
+    // Check for initial view from hash
+    if (window.location.hash === '#settings') {
+        switchView('settings');
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('promptSync') === '1') {
+            showToast('Please configure your Bitable settings to enable sync.', 'warning');
+        }
+    }
+
     setupListeners();
 }
 
@@ -50,12 +62,23 @@ async function setupBitableSettings() {
     const config = result.bitableConfig || {};
     if (config.link) bitableLinkInput.value = config.link;
     if (config.token) personalTokenInput.value = config.token;
+    autoSyncEnable.checked = config.autoSync || false;
+    syncIntervalInput.value = config.interval || 10;
 
     saveBitableBtn.addEventListener('click', async () => {
         const link = bitableLinkInput.value.trim();
         const token = personalTokenInput.value.trim();
-        await chrome.storage.local.set({ bitableConfig: { link, token } });
-        alert('Configuration saved!');
+        const autoSync = autoSyncEnable.checked;
+        const interval = parseInt(syncIntervalInput.value) || 10;
+
+        await chrome.storage.local.set({
+            bitableConfig: { link, token, autoSync, interval }
+        });
+
+        // Notify background to update alarm
+        chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_SYNC' });
+
+        showToast('Configuration saved!');
     });
 }
 
@@ -343,5 +366,29 @@ async function setupShortcutSettings() {
     };
 }
 
+function showToast(message, type = 'success') {
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <span class="toast-message">${message}</span>
+    `;
+
+    toastContainer.appendChild(toast);
+
+    // Remove from DOM after animation
+    setTimeout(() => {
+        toast.remove();
+        if (toastContainer.children.length === 0) {
+            toastContainer.remove();
+            toastContainer = null;
+        }
+    }, 3000);
+}
 
 init();

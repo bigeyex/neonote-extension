@@ -103,8 +103,7 @@ function setupListeners() {
         const config = result.bitableConfig;
 
         if (!config || !config.link || !config.token) {
-            alert('Please configure Bitable settings in Home > Settings first.');
-            chrome.tabs.create({ url: chrome.runtime.getURL('home/home.html') });
+            chrome.tabs.create({ url: chrome.runtime.getURL('home/home.html?promptSync=1#settings') });
             return;
         }
 
@@ -597,7 +596,7 @@ async function ensureHighlighterInTab(tabId) {
     // Skip for non-web pages
     try {
         const tab = await chrome.tabs.get(tabId);
-        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
+        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:') || tab.url.startsWith('chrome-extension://')) {
             return;
         }
     } catch (e) {

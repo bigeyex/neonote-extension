@@ -13,27 +13,31 @@
     <div id="app">
         <header>
             <div class="search-wrapper">
-                <button id="sync-files" class="icon-btn sync-btn" data-tooltip="Sync to Lark Bitable">
+                <button id="sync-files" class="icon-btn sync-btn" data-i18n-tooltip="sidepanel.tooltip.sync"
+                    data-tooltip="Sync to Lark Bitable">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
                     </svg>
                 </button>
-                <button id="open-home" class="icon-btn" data-tooltip="Open Home Dashboard">
+                <button id="open-home" class="icon-btn" data-i18n-tooltip="sidepanel.tooltip.home"
+                    data-tooltip="Open Home Dashboard">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
                 </button>
-                <button id="toggle-url-filter" class="icon-btn active" data-tooltip="Show notes for this page only">
+                <button id="toggle-url-filter" class="icon-btn active" data-i18n-tooltip="sidepanel.tooltip.urlFilter"
+                    data-tooltip="Show notes for this page only">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                         <polyline points="13 2 13 9 20 9"></polyline>
                     </svg>
                 </button>
-                <button id="summarize-page" class="icon-btn" data-tooltip="Summarize page opinions (Cmd+Shift+9)">
+                <button id="summarize-page" class="icon-btn" data-i18n-tooltip="sidepanel.tooltip.summarize"
+                    data-tooltip="Summarize page opinions (Cmd+Shift+9)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -43,19 +47,21 @@
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                 </button>
-                <input type="text" id="search" placeholder="Search...">
-                <span id="clear-filters" class="clear-icon" style="display: none;">×</span>
+                <input type="text" id="search" data-i18n="sidepanel.search.placeholder" placeholder="Search...">
+                <span id="clear-filters" class="clear-icon" style="display: none;"
+                    data-i18n-tooltip="sidepanel.tooltip.clearFilter" title="Clear filters">×</span>
             </div>
         </header>
 
         <main>
             <div id="note-editor">
-                <div id="editor-content" contenteditable="true" placeholder="What's on your mind? ..."></div>
+                <div id="editor-content" contenteditable="true" data-i18n-placeholder="sidepanel.editor.placeholder"
+                    placeholder="Take a note..."></div>
                 <div id="tag-suggestions" class="suggestions hidden"></div>
                 <div class="editor-actions">
                     <!-- Could add helper icons here (image, list, etc) -->
                     <div id="recent-tags" class="recent-tags-list"></div>
-                    <button id="save-note">
+                    <button id="save-note" data-i18n-tooltip="sidepanel.save" data-tooltip="Save">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="22" y1="2" x2="11" y2="13"></line>

@@ -31,7 +31,7 @@
 
             <nav id="sidebar-nav">
                 <div class="nav-section">
-                    <h3>Tags</h3>
+                    <h3 data-i18n="nav.tags">Tags</h3>
                     <div id="tags-list">
                         <!-- Tags injected here -->
                     </div>
@@ -47,7 +47,7 @@
                             d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
                         </path>
                     </svg>
-                    Settings
+                    <span data-i18n="nav.settings">Settings</span>
                 </button>
             </div>
         </aside>
@@ -75,36 +75,51 @@
                 <div class="settings-container">
                     <div class="setting-item">
                         <div class="setting-label">
-                            <h3>Theme</h3>
-                            <p>Choose how NeoNote looks.</p>
+                            <h3 data-i18n="settings.language.title">Language</h3>
+                            <p data-i18n="settings.language.desc">Choose your preferred language.</p>
                         </div>
                         <div class="setting-control">
-                            <select id="theme-select">
-                                <option value="system">Follow System</option>
-                                <option value="light">Light Mode</option>
-                                <option value="dark">Dark Mode</option>
+                            <select id="language-select">
+                                <option value="en">English</option>
+                                <option value="zh">中文 (Chinese)</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="setting-item">
                         <div class="setting-label">
-                            <h3>Shortcuts</h3>
-                            <p>Customize keyboard shortcuts.</p>
+                            <h3 data-i18n="settings.theme.title">Theme</h3>
+                            <p data-i18n="settings.theme.desc">Choose how NeoNote looks.</p>
+                        </div>
+                        <div class="setting-control">
+                            <select id="theme-select">
+                                <option value="system" data-i18n="settings.theme.system">Follow System</option>
+                                <option value="light" data-i18n="settings.theme.light">Light Mode</option>
+                                <option value="dark" data-i18n="settings.theme.dark">Dark Mode</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-label">
+                            <h3 data-i18n="settings.shortcuts.title">Shortcuts</h3>
+                            <p data-i18n="settings.shortcuts.desc">Customize keyboard shortcuts.</p>
                         </div>
                         <div class="setting-control shortcuts-control">
                             <div class="shortcut-row">
-                                <label>Toggle Sidepanel</label>
+                                <label data-i18n="settings.shortcuts.toggle">Toggle Sidepanel</label>
                                 <div class="shortcut-input-wrapper">
                                     <input type="text" id="shortcut-toggle" readonly value="Meta+0">
-                                    <button id="reset-shortcut-toggle" title="Reset to default">↺</button>
+                                    <button id="reset-shortcut-toggle"
+                                        data-i18n-tooltip="settings.shortcuts.reset">↺</button>
                                 </div>
                             </div>
                             <div class="shortcut-row">
-                                <label>Submit Note</label>
+                                <label data-i18n="settings.shortcuts.submit">Submit Note</label>
                                 <div class="shortcut-input-wrapper">
                                     <input type="text" id="shortcut-submit" readonly value="Meta+Enter">
-                                    <button id="reset-shortcut-submit" title="Reset to default">↺</button>
+                                    <button id="reset-shortcut-submit"
+                                        data-i18n-tooltip="settings.shortcuts.reset">↺</button>
                                 </div>
                             </div>
                         </div>
@@ -112,49 +127,56 @@
 
                     <div class="setting-item">
                         <div class="setting-label">
-                            <h3>Lark Bitable Sync</h3>
-                            <p>Configure sync to Lark/Feishu Bitable.</p>
+                            <h3 data-i18n="settings.bitable.title">Lark Bitable Sync</h3>
+                            <p data-i18n="settings.bitable.desc">Configure sync to Lark/Feishu Bitable.</p>
                         </div>
                         <div class="setting-control vertical-control">
-                            <label for="bitable-link">Bitable Link (URL)</label>
+                            <label for="bitable-link" data-i18n="settings.bitable.link">Bitable Link (URL)</label>
                             <input type="text" id="bitable-link" placeholder="https://..." class="setting-input">
-                            <label for="personal-token" style="margin-top: 8px;">Personal Base Token</label>
+                            <label for="personal-token" style="margin-top: 8px;"
+                                data-i18n="settings.bitable.token">Personal Base Token</label>
                             <input type="password" id="personal-token" placeholder="cli_..." class="setting-input">
 
                             <div class="sync-options" style="margin-top: 16px; width: 100%;">
                                 <div class="checkbox-row"
                                     style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                     <input type="checkbox" id="auto-sync-enable">
-                                    <label for="auto-sync-enable">Enable Auto-Sync</label>
+                                    <label for="auto-sync-enable" data-i18n="settings.bitable.autoSync">Enable
+                                        Auto-Sync</label>
                                 </div>
                                 <div class="input-row" style="display: flex; align-items: center; gap: 8px;">
-                                    <label for="sync-interval">Interval (minutes)</label>
+                                    <label for="sync-interval" data-i18n="settings.bitable.interval">Interval
+                                        (minutes)</label>
                                     <input type="number" id="sync-interval" min="1" value="10" style="width: 60px;"
                                         class="setting-input">
                                 </div>
                             </div>
 
-                            <button id="save-bitable-config" class="primary-btn" style="margin-top: 12px;">Save
+                            <button id="save-bitable-config" class="primary-btn" style="margin-top: 12px;"
+                                data-i18n="settings.bitable.save">Save
                                 Config</button>
                         </div>
                     </div>
 
                     <div class="setting-item">
                         <div class="setting-label">
-                            <h3>LLM Settings</h3>
-                            <p>Configure AI model for page summarization.</p>
+                            <h3 data-i18n="settings.llm.title">LLM Settings</h3>
+                            <p data-i18n="settings.llm.desc">Configure AI model for page summarization.</p>
                         </div>
                         <div class="setting-control vertical-control">
-                            <label for="llm-provider">Provider</label>
+                            <label for="llm-provider" data-i18n="settings.llm.provider">Provider</label>
                             <select id="llm-provider" class="setting-input">
                                 <option value="volcengine">Volcengine (火山方舟)</option>
                             </select>
-                            <label for="llm-api-key" style="margin-top: 8px;">API Key</label>
+                            <label for="llm-api-key" style="margin-top: 8px;" data-i18n="settings.llm.apiKey">API
+                                Key</label>
                             <input type="password" id="llm-api-key" placeholder="Your API Key..." class="setting-input">
-                            <label for="llm-model-id" style="margin-top: 8px;">Model ID</label>
+                            <label for="llm-model-id" style="margin-top: 8px;" data-i18n="settings.llm.modelId">Model
+                                ID</label>
                             <input type="text" id="llm-model-id" placeholder="doubao-seed-1-8-251228"
                                 class="setting-input">
-                            <button id="save-llm-config" class="primary-btn" style="margin-top: 12px;">Save LLM
+                            <button id="save-llm-config" class="primary-btn" style="margin-top: 12px;"
+                                data-i18n="settings.llm.save">Save LLM
                                 Config</button>
                         </div>
                     </div>

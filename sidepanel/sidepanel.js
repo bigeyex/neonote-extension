@@ -4,6 +4,7 @@ import { syncToLark } from '../scripts/lark_sync.js';
 import { handleCleanPaste } from '../scripts/paste_utils.js';
 import { getHostname } from '../scripts/utils.js';
 import { summarizeWithLLM } from '../scripts/llm.js';
+import { initI18n, t } from '../scripts/i18n.js';
 
 const searchInput = document.getElementById('search');
 const clearFiltersBtn = document.getElementById('clear-filters');
@@ -47,6 +48,7 @@ async function init() {
     chrome.runtime.connect({ name: 'sidepanel' });
 
     await initTheme(); // Initialize theme
+    await initI18n(); // Initialize i18n
 
     // Setup Infinite Scroll
     setupInfiniteScroll();
@@ -593,11 +595,16 @@ async function updateRecentTags() {
 
 function renderRecentTags() {
     recentTagsContainer.innerHTML = '';
+
+    // Header for recent tags if needed, or just plain tags
+    // For now, keeping it simple as per previous design
+
     recentTags.forEach((tag, index) => {
         const tagEl = document.createElement('div');
         tagEl.className = 'recent-tag';
         tagEl.innerHTML = `<span class="recent-tag-index">${index + 1}</span>${tag}`;
-        tagEl.dataset.tooltip = `Add tag '${tag}' to note (Alt+${index + 1})`;
+        // Use t() for localized tooltip
+        tagEl.dataset.tooltip = t('sidepanel.tooltip.addTag', { tag, n: index + 1 });
         tagEl.onclick = () => insertRecentTag(tag);
         recentTagsContainer.appendChild(tagEl);
     });
@@ -656,7 +663,7 @@ let abortController = null;
 
 async function handleSummarize() {
     if (!currentTabId) {
-        alert('No active tab found.');
+        alert(t('msg.noActiveTab'));
         return;
     }
 
@@ -671,7 +678,7 @@ async function handleSummarize() {
     const config = configResult.llmConfig;
     if (!config || !config.apiKey) {
         chrome.tabs.create({ url: chrome.runtime.getURL('home/home.html#settings') });
-        alert('Please configure LLM settings first.');
+        alert(t('msg.configureLLM'));
         return;
     }
 
@@ -685,13 +692,13 @@ async function handleSummarize() {
     // Create text container
     const textContainer = document.createElement('div');
     textContainer.className = 'reasoning-text';
-    textContainer.textContent = 'Thinking...';
+    textContainer.textContent = t('sidepanel.summary.thinking');
     reasoningDisplay.appendChild(textContainer);
 
     // Create stop button
     const stopBtn = document.createElement('div');
     stopBtn.className = 'stop-btn';
-    stopBtn.title = 'Stop generating';
+    stopBtn.title = t('sidepanel.summary.stop');
     stopBtn.innerHTML = `
         <svg viewBox="0 0 24 24">
             <rect x="6" y="6" width="12" height="12"></rect>
@@ -711,7 +718,7 @@ async function handleSummarize() {
         // Get page content from content script
         const response = await chrome.tabs.sendMessage(currentTabId, { type: 'GET_PAGE_CONTENT' });
         if (!response || !response.content) {
-            throw new Error('Could not get page content');
+            throw new Error(t('msg.getContentFailed'));
         }
 
         // Call LLM with reasoning callback & signal
@@ -758,7 +765,7 @@ function showSummaryError(message) {
     reasoningDisplay.classList.add('error-box');
     reasoningDisplay.classList.remove('hidden');
     reasoningDisplay.innerHTML = `
-        <div class="error-text">Summarize failed: ${escapeHtml(message)}</div>
+        <div class="error-text">${t('sidepanel.summary.failed')} ${escapeHtml(message)}</div>
         <div class="error-close-btn" title="Close">×</div>
     `;
 

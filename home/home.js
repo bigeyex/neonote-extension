@@ -1,5 +1,6 @@
 import { getAllNotes, saveNote, deleteNote } from '../scripts/db.js';
 import { initTheme, setTheme, getCurrentTheme, THEMES } from '../scripts/theme.js';
+import { initI18n, setLanguage, t, getLanguage } from '../scripts/i18n.js';
 
 import { syncToLark } from '../scripts/lark_sync.js';
 import { handleCleanPaste } from '../scripts/paste_utils.js';
@@ -14,6 +15,7 @@ const navSettings = document.getElementById('nav-settings');
 const viewDashboard = document.getElementById('view-dashboard');
 const viewSettings = document.getElementById('view-settings');
 const themeSelect = document.getElementById('theme-select');
+const languageSelect = document.getElementById('language-select');
 const pageTitle = document.getElementById('page-title');
 
 // Bitable Elements
@@ -38,11 +40,25 @@ let topTags = [];
 
 async function init() {
     await initTheme();
+    await initI18n(); // Initialize i18n first
 
     // Setup theme settings
     const currentTheme = await getCurrentTheme();
     themeSelect.value = currentTheme;
     themeSelect.addEventListener('change', (e) => setTheme(e.target.value));
+
+    // Setup Language settings
+    languageSelect.value = getLanguage();
+    languageSelect.addEventListener('change', async (e) => {
+        await setLanguage(e.target.value);
+        renderTags(); // Re-render tags to update "All Notes"
+        renderNotes(); // Re-render notes (if needed)
+
+        // Update any specific elements that might need manual update
+        if (!currentFilter.tag) {
+            pageTitle.textContent = t('home.allNotes');
+        }
+    });
 
     // Setup Shortcut settings
     await setupShortcutSettings();
@@ -64,7 +80,7 @@ async function init() {
         switchView('settings');
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('promptSync') === '1') {
-            showToast('Please configure your Bitable settings to enable sync.', 'warning');
+            showToast(t('msg.configureBitable'), 'warning');
         }
     }
 
@@ -92,7 +108,7 @@ async function setupBitableSettings() {
         // Notify background to update alarm
         chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_SYNC' });
 
-        showToast('Configuration saved!');
+        showToast(t('msg.configSaved'));
     });
 }
 
@@ -113,7 +129,7 @@ async function setupLLMSettings() {
             llmConfig: { provider, apiKey, modelId }
         });
 
-        showToast('LLM configuration saved!');
+        showToast(t('msg.llmSaved'));
     });
 }
 
@@ -167,7 +183,7 @@ function setupListeners() {
         const config = result.bitableConfig;
 
         if (!config || !config.link || !config.token) {
-            alert('Please configure Bitable settings first.');
+            alert(t('msg.configureBitable'));
             switchView('settings');
             return;
         }
@@ -176,10 +192,10 @@ function setupListeners() {
             svg.classList.add('spin');
             await syncToLark(config.link, config.token);
             await refreshNotes();
-            alert('Sync completed successfully!');
+            alert(t('msg.syncSuccess'));
         } catch (e) {
             console.error(e);
-            alert('Sync failed: ' + e.message);
+            alert(t('msg.syncFailed') + e.message);
         } finally {
             svg.classList.remove('spin');
         }
@@ -231,10 +247,10 @@ function renderTags() {
     // "All Notes" fake tag
     const allItem = document.createElement('div');
     allItem.className = `tag-item ${!currentFilter.tag ? 'active' : ''}`;
-    allItem.innerHTML = `<span>All Notes</span><span class="tag-count">${allNotes.length}</span>`;
+    allItem.innerHTML = `<span>${t('home.allNotes')}</span><span class="tag-count">${allNotes.length}</span>`;
     allItem.onclick = () => {
         currentFilter.tag = null;
-        pageTitle.textContent = 'All Notes';
+        pageTitle.textContent = t('home.allNotes');
         switchView('dashboard');
         renderTags();
         renderNotes();
@@ -353,7 +369,7 @@ function renderNotes() {
         const deleteBtn = noteEl.querySelector('.delete-btn');
         if (deleteBtn) {
             deleteBtn.addEventListener('click', async () => {
-                if (confirm('Delete note?')) {
+                if (confirm(t('msg.deleteConfirm'))) {
                     await deleteNote(note.id);
                     refreshNotes();
                 }
@@ -461,11 +477,11 @@ function createNewNoteCard(initialContent = '') {
     card.addEventListener('mouseleave', () => { if (hoveredNoteId === 'NEW_NOTE') hoveredNoteId = null; });
     card.innerHTML = `
         <div class="note-header">
-            <span class="note-timestamp">Create New Note</span>
+            <span class="note-timestamp">${t('home.folder.newNote')}</span>
         </div>
-        <div class="note-content editor" contenteditable="true" placeholder="Type your note here... #tag">${initialContent}</div>
+        <div class="note-content editor" contenteditable="true" placeholder="${t('home.placeholder.type')}">${initialContent}</div>
         <div class="note-footer">
-            <button class="primary-btn save-btn">Save Note</button>
+            <button class="primary-btn save-btn">${t('home.btn.save')}</button>
         </div>
     `;
 
@@ -487,7 +503,7 @@ function createNewNoteCard(initialContent = '') {
         await saveNote(note);
         editor.innerHTML = '';
         await refreshNotes();
-        showToast('Note created successfully!');
+        showToast(t('msg.noteCreated'));
     });
 
     // Handle Cmd+Enter to save
@@ -533,7 +549,7 @@ async function toggleTagForNote(noteId, tag) {
 
     await saveNote({ ...note, content, html, tags });
     await refreshNotes();
-    showToast(`${hasTag ? 'Removed' : 'Added'} tag #${tag}`);
+    showToast(`${hasTag ? t('msg.tagRemoved') : t('msg.tagAdded')} #${tag}`);
 }
 
 function showToast(message, type = 'success') {

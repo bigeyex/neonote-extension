@@ -150,5 +150,10 @@ function matchesShortcut(event, shortcutString) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'PING') {
         sendResponse({ status: 'OK' });
+    } else if (message.type === 'GET_PAGE_CONTENT') {
+        // Return the page text content for summarization
+        const content = document.body.innerText;
+        sendResponse({ content: content });
     }
+    return true; // Keep channel open for async response
 });

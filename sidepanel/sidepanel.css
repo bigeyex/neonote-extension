@@ -148,41 +148,38 @@ main {
 }
 
 .recent-tag {
+  height: 20px;
+  box-sizing: border-box;
   font-size: 11px;
   color: var(--text-secondary);
-  background-color: var(--tag-bg);
-  padding: 2px 6px;
+  background-color: rgba(128, 128, 128, 0.1);
+  padding: 0 8px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
-  opacity: 0.7;
-  transition: opacity 0.2s, background-color 0.2s;
+  transition: background-color 0.2s;
   user-select: none;
 }
 
+[data-theme="dark"] .recent-tag {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
 .recent-tag:hover {
-  opacity: 1;
-  background-color: var(--border-color);
+  background-color: var(--icon-hover);
 }
 
 .recent-tag-index {
-  background-color: #fff;
-  color: var(--accent-color);
-  width: 14px;
-  height: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
+  color: var(--text-secondary);
   font-size: 10px;
   font-weight: bold;
 }
 
 [data-theme="dark"] .recent-tag-index {
-  background-color: var(--text-primary);
-  color: var(--bg-color);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Note List */
@@ -286,5 +283,117 @@ img {
   100% {
     stroke-dasharray: 90, 150;
     stroke-dashoffset: -124;
+  }
+}
+
+/* Draft Cards */
+#draft-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+#draft-cards.hidden {
+  display: none;
+}
+
+.draft-card {
+  background-color: var(--card-bg);
+  border-radius: var(--card-radius);
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--accent-color);
+  border-left: 3px solid var(--accent-color);
+}
+
+.draft-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.draft-card-header .add-note-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent-color);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.draft-card-header .add-note-btn:hover {
+  background-color: var(--tag-bg);
+}
+
+.opinion-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.evidences-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-top: 8px;
+  user-select: none;
+}
+
+.evidences-toggle:hover {
+  color: var(--text-primary);
+}
+
+.evidences-toggle svg {
+  transition: transform 0.2s;
+}
+
+.evidences-toggle.expanded svg {
+  transform: rotate(90deg);
+}
+
+.evidences-list {
+  display: none;
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-color);
+}
+
+.evidences-list.expanded {
+  display: block;
+}
+
+.evidence-item {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 6px;
+  padding: 4px 0;
+}
+
+.evidence-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Summarize button loading state */
+#summarize-page.loading svg {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
   }
 }

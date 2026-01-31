@@ -3,6 +3,7 @@ import { initTheme } from '../scripts/theme.js';
 import { syncToLark } from '../scripts/lark_sync.js';
 import { handleCleanPaste } from '../scripts/paste_utils.js';
 import { getHostname } from '../scripts/utils.js';
+import { summarizeWithLLM } from '../scripts/llm.js';
 
 const searchInput = document.getElementById('search');
 const clearFiltersBtn = document.getElementById('clear-filters');
@@ -15,6 +16,8 @@ const syncBtn = document.getElementById('sync-files');
 const tagSuggestions = document.getElementById('tag-suggestions');
 const loadingIndicator = document.getElementById('loading-indicator');
 const recentTagsContainer = document.getElementById('recent-tags');
+const summarizeBtn = document.getElementById('summarize-page');
+const draftCardsContainer = document.getElementById('draft-cards');
 
 let recentTags = [];
 
@@ -126,6 +129,8 @@ function setupListeners() {
         loadNotes(true);
     });
 
+    summarizeBtn.addEventListener('click', handleSummarize);
+
     searchInput.addEventListener('input', (e) => {
         currentFilter.text = e.target.value.toLowerCase();
         clearFiltersBtn.style.display = currentFilter.text ? 'block' : 'none';
@@ -154,6 +159,12 @@ function setupListeners() {
                 e.preventDefault();
                 insertRecentTag(recentTags[index]);
             }
+        }
+
+        // Command + Shift + 9 for summarize
+        if (e.metaKey && e.shiftKey && e.code === 'Digit9') {
+            e.preventDefault();
+            handleSummarize();
         }
     });
 
@@ -623,6 +634,132 @@ async function ensureHighlighterInTab(tabId) {
             console.error('Failed to inject highlighter:', err);
         }
     }
+}
+
+async function handleSummarize() {
+    if (!currentTabId) {
+        alert('No active tab found.');
+        return;
+    }
+
+    // Check LLM config
+    const configResult = await chrome.storage.local.get('llmConfig');
+    const config = configResult.llmConfig;
+    if (!config || !config.apiKey) {
+        chrome.tabs.create({ url: chrome.runtime.getURL('home/home.html#settings') });
+        alert('Please configure LLM settings first.');
+        return;
+    }
+
+    summarizeBtn.classList.add('loading');
+
+    try {
+        // Get page content from content script
+        const response = await chrome.tabs.sendMessage(currentTabId, { type: 'GET_PAGE_CONTENT' });
+        if (!response || !response.content) {
+            throw new Error('Could not get page content');
+        }
+
+        // Call LLM
+        const opinions = await summarizeWithLLM(response.content);
+
+        // Render draft cards
+        renderDraftCards(opinions);
+
+    } catch (e) {
+        console.error('Summarize failed:', e);
+        alert('Summarize failed: ' + e.message);
+    } finally {
+        summarizeBtn.classList.remove('loading');
+    }
+}
+
+function renderDraftCards(opinions) {
+    draftCardsContainer.innerHTML = '';
+
+    if (!opinions || opinions.length === 0) {
+        draftCardsContainer.classList.add('hidden');
+        return;
+    }
+
+    draftCardsContainer.classList.remove('hidden');
+
+    opinions.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'draft-card';
+        card.dataset.index = index;
+
+        const evidencesHtml = item.evidences && item.evidences.length > 0
+            ? item.evidences.map(e => `<div class="evidence-item">• ${escapeHtml(e)}</div>`).join('')
+            : '<div class="evidence-item">No evidences provided</div>';
+
+        card.innerHTML = `
+            <div class="draft-card-header">
+                <div class="opinion-text">${escapeHtml(item.opinion)}</div>
+                <button class="add-note-btn" title="Add as note">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="evidences-toggle" data-index="${index}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+                ${item.evidences ? item.evidences.length : 0} evidence(s)
+            </div>
+            <div class="evidences-list" data-index="${index}">
+                ${evidencesHtml}
+            </div>
+        `;
+
+        // Toggle evidences
+        card.querySelector('.evidences-toggle').addEventListener('click', function () {
+            this.classList.toggle('expanded');
+            card.querySelector('.evidences-list').classList.toggle('expanded');
+        });
+
+        // Add as note
+        card.querySelector('.add-note-btn').addEventListener('click', () => {
+            convertDraftToNote(item.opinion, item.evidences || []);
+            card.remove();
+            if (draftCardsContainer.children.length === 0) {
+                draftCardsContainer.classList.add('hidden');
+            }
+        });
+
+        draftCardsContainer.appendChild(card);
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function convertDraftToNote(opinion, evidences) {
+    const evidenceText = evidences.length > 0
+        ? '\n\nEvidences:\n' + evidences.map(e => `• ${e}`).join('\n')
+        : '';
+
+    const content = opinion + evidenceText;
+    const html = `<div>${escapeHtml(opinion)}</div>` +
+        (evidences.length > 0
+            ? `<div class="highlight-quote" style="margin-top: 8px;">${evidences.map(e => `<div>• ${escapeHtml(e)}</div>`).join('')}</div>`
+            : '');
+
+    const note = {
+        content: content,
+        html: html,
+        url: currentUrl,
+        tags: ['summary']
+    };
+
+    await saveNote(note);
+    loadNotes(true);
+    await updateRecentTags();
 }
 
 init();

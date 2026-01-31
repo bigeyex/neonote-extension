@@ -24,6 +24,12 @@ const syncIntervalInput = document.getElementById('sync-interval');
 const saveBitableBtn = document.getElementById('save-bitable-config');
 const syncHomeBtn = document.getElementById('sync-home');
 
+// LLM Settings Elements
+const llmProviderSelect = document.getElementById('llm-provider');
+const llmApiKeyInput = document.getElementById('llm-api-key');
+const llmModelIdInput = document.getElementById('llm-model-id');
+const saveLLMBtn = document.getElementById('save-llm-config');
+
 let allNotes = [];
 let currentFilter = { text: '', tag: null };
 let toastContainer = null;
@@ -43,6 +49,9 @@ async function init() {
 
     // Setup Bitable Settings
     await setupBitableSettings();
+
+    // Setup LLM Settings
+    await setupLLMSettings();
 
     // Load data
     await refreshNotes();
@@ -84,6 +93,27 @@ async function setupBitableSettings() {
         chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_SYNC' });
 
         showToast('Configuration saved!');
+    });
+}
+
+async function setupLLMSettings() {
+    const result = await chrome.storage.local.get(['llmConfig']);
+    const config = result.llmConfig || {};
+
+    if (config.provider) llmProviderSelect.value = config.provider;
+    if (config.apiKey) llmApiKeyInput.value = config.apiKey;
+    if (config.modelId) llmModelIdInput.value = config.modelId;
+
+    saveLLMBtn.addEventListener('click', async () => {
+        const provider = llmProviderSelect.value;
+        const apiKey = llmApiKeyInput.value.trim();
+        const modelId = llmModelIdInput.value.trim() || 'doubao-seed-1-8-251228';
+
+        await chrome.storage.local.set({
+            llmConfig: { provider, apiKey, modelId }
+        });
+
+        showToast('LLM configuration saved!');
     });
 }
 

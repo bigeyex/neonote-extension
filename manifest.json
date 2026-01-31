@@ -9,13 +9,15 @@
     "storage",
     "activeTab",
     "scripting",
-    "alarms"
+    "alarms",
+    "contextMenus"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "side_panel": {
     "default_path": "sidepanel/sidepanel.html"
@@ -48,6 +50,13 @@
         "mac": "Command+0"
       },
       "description": "Toggle the sidepanel"
+    },
+    "add-selection-note": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+0",
+        "mac": "Command+Shift+0"
+      },
+      "description": "Add selection as a note"
     }
   }
 }

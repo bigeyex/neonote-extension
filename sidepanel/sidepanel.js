@@ -221,6 +221,8 @@ function setupListeners() {
             loadNotes(true);
         } else if (message.type === 'PROCESS_PENDING_HIGHLIGHT') {
             processPendingHighlight();
+        } else if (message.type === 'PROCESS_PENDING_QUOTE') {
+            processPendingQuote();
         } else if (message.type === 'CREATE_HIGHLIGHT_NOTE') {
             createNewHighlightNote(message.text, message.url);
         } else if (message.type === 'CLOSE_SIDEBAR_REQUEST') {

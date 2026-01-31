@@ -3,6 +3,8 @@ const translations = {
         // General
         'app.title': 'NeoNote',
         'app.home': 'NeoNote Home',
+        'app.contextMenu': 'Add Selection to NeoNote',
+        'app.addSelection': 'Add Selection',
 
         // Settings - Sidebar
         'nav.tags': 'Tags',
@@ -82,6 +84,8 @@ const translations = {
         // General
         'app.title': 'NeoNote',
         'app.home': 'NeoNote 主页',
+        'app.contextMenu': '添加到 NeoNote',
+        'app.addSelection': '添加选中内容',
 
         // Settings - Sidebar
         'nav.tags': '标签',
@@ -176,7 +180,9 @@ export async function initI18n() {
         }
     }
 
-    updatePageText();
+    if (typeof document !== 'undefined') {
+        updatePageText();
+    }
     return currentLang;
 }
 
@@ -192,10 +198,15 @@ export async function setLanguage(lang) {
     if (translations[lang]) {
         currentLang = lang;
         await chrome.storage.local.set({ language: lang });
-        updatePageText();
+        if (typeof document !== 'undefined') {
+            updatePageText();
+        }
 
         // Dispatch event for other components to react if needed
-        window.dispatchEvent(new CustomEvent('languageChanged', { detail: lang }));
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('languageChanged', { detail: lang }));
+        }
+        chrome.runtime.sendMessage({ type: 'LANGUAGE_CHANGED', lang });
     }
 }
 
@@ -204,6 +215,7 @@ export function getLanguage() {
 }
 
 function updatePageText() {
+    if (typeof document === 'undefined') return;
     const elements = document.querySelectorAll('[data-i18n], [data-i18n-tooltip], [data-i18n-placeholder]');
     elements.forEach(el => {
         const key = el.getAttribute('data-i18n');

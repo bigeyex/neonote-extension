@@ -277,14 +277,24 @@ body {
 
 .setting-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 0;
+    justify-content: flex-start;
+    /* Align to the left */
+    align-items: flex-start;
+    /* Align to top for multi-line controls */
+    padding: 20px 0;
     border-bottom: 1px solid var(--border-color);
+    gap: 40px;
+    /* Space between label and control */
 }
 
 .setting-item:last-child {
     border-bottom: none;
+}
+
+.setting-label {
+    flex: 0 0 240px;
+    /* Fixed width for labels */
+    padding-right: 20px;
 }
 
 .setting-label h3 {
@@ -299,14 +309,31 @@ body {
     color: var(--text-secondary);
 }
 
+.setting-control {
+    flex: 1;
+}
+
 select {
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 8px 36px 8px 12px;
+    border-radius: 8px;
     background-color: var(--input-bg);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     outline: none;
     font-size: 14px;
+    min-width: 200px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
 /* Utility */

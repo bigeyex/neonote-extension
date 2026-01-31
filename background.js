@@ -1,3 +1,6 @@
+import { t, initI18n } from './scripts/i18n.js';
+import { syncToLark } from './scripts/lark_sync.js';
+
 chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch((error) => console.error(error));
@@ -27,6 +30,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
     } else if (message.type === 'UPDATE_AUTO_SYNC') {
         setupAutoSync();
+    } else if (message.type === 'LANGUAGE_CHANGED') {
+        setupContextMenu();
+    }
+});
+
+// Context Menu Setup
+function setupContextMenu() {
+    initI18n().then(() => {
+        const title = t('app.contextMenu');
+        // pattern: try update, if fails, create.
+        chrome.contextMenus.update('add-selection-to-neonote', {
+            title: title,
+            contexts: ['selection']
+        }, () => {
+            if (chrome.runtime.lastError) {
+                // Not found, create it
+                chrome.contextMenus.create({
+                    id: 'add-selection-to-neonote',
+                    title: title,
+                    contexts: ['selection']
+                }, () => {
+                    // Silence duplicate ID or other creation errors
+                    const _ = chrome.runtime.lastError;
+                });
+            }
+        });
+    }).catch(e => console.error('setupContextMenu failed:', e));
+}
+
+// Ensure context menu is set up on install/update/reload
+chrome.runtime.onInstalled.addListener(() => {
+    setupContextMenu();
+});
+
+// Also run once on service worker startup to ensure it's there
+setupContextMenu();
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === 'add-selection-to-neonote' && info.selectionText) {
+        openSidebarWithQuote(tab, info.selectionText);
     }
 });
 
@@ -54,8 +97,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
         if (config && config.link && config.token) {
             try {
-                // Dynamically import sync function
-                const { syncToLark } = await import('./scripts/lark_sync.js');
                 await syncToLark(config.link, config.token);
                 console.log('Auto-sync completed at', new Date().toLocaleString());
             } catch (e) {
@@ -65,13 +106,34 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
 });
 
-chrome.commands.onCommand.addListener((command, tab) => {
+chrome.commands.onCommand.addListener(async (command, tab) => {
     if (command === 'toggle-sidebar') {
         if (tab) {
             toggleSidebar(tab);
         }
+    } else if (command === 'add-selection-note') {
+        if (tab) {
+            // Try to get selection from tab
+            let selectionText = null;
+            try {
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: () => window.getSelection().toString()
+                });
+                if (results && results[0] && results[0].result) {
+                    selectionText = results[0].result;
+                }
+            } catch (e) {
+                console.log('Could not get selection via script (expected on some pages like PDFs):', e);
+            }
+
+            // For PDFs, we might not get selectionText via executeScript.
+            // But we can still open the sidebar.
+            openSidebarWithQuote(tab, selectionText);
+        }
     }
 });
+
 
 function toggleSidebar(tab, selectionText = null) {
     if (isSidebarOpen && !selectionText) {
@@ -85,7 +147,9 @@ function toggleSidebar(tab, selectionText = null) {
 
 function openSidebarWithQuote(tab, selectionText) {
     if (selectionText) {
-        chrome.storage.local.set({ pendingQuote: { text: selectionText, url: tab.url } });
+        chrome.storage.local.set({ pendingQuote: { text: selectionText, url: tab.url } }, () => {
+            safeSendMessage({ type: 'PROCESS_PENDING_QUOTE' });
+        });
     }
     chrome.sidePanel.open({ windowId: tab.windowId }).catch(err => {
         console.error('Failed to open sidePanel:', err);

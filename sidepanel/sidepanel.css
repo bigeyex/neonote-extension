@@ -286,6 +286,90 @@ img {
   }
 }
 
+/* Reasoning Display */
+#reasoning-display {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.7;
+  height: 20px;
+  line-height: 20px;
+  transition: all 0.2s;
+}
+
+.reasoning-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  /* content scrolled by JS */
+  text-overflow: ellipsis;
+}
+
+.stop-btn {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  border-radius: 4px;
+}
+
+.stop-btn:hover {
+  opacity: 1;
+  background-color: rgba(128, 128, 128, 0.2);
+}
+
+.stop-btn svg {
+  width: 10px;
+  height: 10px;
+  fill: currentColor;
+}
+
+#reasoning-display.error-box {
+  background-color: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  border: 1px solid rgba(255, 59, 48, 0.2);
+  border-radius: 4px;
+  padding: 8px 30px 8px 8px;
+  white-space: normal;
+  overflow: visible;
+  height: auto;
+  min-height: 20px;
+  line-height: 1.4;
+  font-style: normal;
+  opacity: 1;
+}
+
+.error-close-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #ff3b30;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+  user-select: none;
+}
+
+.error-close-btn:hover {
+  background-color: rgba(255, 59, 48, 0.1);
+}
+
+#reasoning-display.hidden {
+  display: none;
+}
+
 /* Draft Cards */
 #draft-cards {
   display: flex;
@@ -396,4 +480,38 @@ img {
   50% {
     opacity: 0.4;
   }
+}
+
+/* Custom Tooltip */
+.tooltip {
+  position: fixed;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  z-index: 1000;
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  opacity: 0;
+}
+
+.tooltip-above {
+  transform: translateY(4px);
+}
+
+.tooltip-below {
+  transform: translateY(-4px);
+}
+
+.tooltip-visible {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+[data-theme="light"] .tooltip {
+  background-color: rgba(30, 30, 30, 0.95);
 }

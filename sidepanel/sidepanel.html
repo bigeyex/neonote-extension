@@ -13,27 +13,27 @@
     <div id="app">
         <header>
             <div class="search-wrapper">
-                <button id="sync-files" class="icon-btn sync-btn" title="Sync to Lark Bitable">
+                <button id="sync-files" class="icon-btn sync-btn" data-tooltip="Sync to Lark Bitable">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
                     </svg>
                 </button>
-                <button id="open-home" class="icon-btn" title="Open Home Dashboard">
+                <button id="open-home" class="icon-btn" data-tooltip="Open Home Dashboard">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
                 </button>
-                <button id="toggle-url-filter" class="icon-btn active" title="Show notes for this page only">
+                <button id="toggle-url-filter" class="icon-btn active" data-tooltip="Show notes for this page only">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                         <polyline points="13 2 13 9 20 9"></polyline>
                     </svg>
                 </button>
-                <button id="summarize-page" class="icon-btn" title="Summarize page opinions (Cmd+Shift+9)">
+                <button id="summarize-page" class="icon-btn" data-tooltip="Summarize page opinions (Cmd+Shift+9)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -65,6 +65,8 @@
                 </div>
             </div>
 
+            <div id="reasoning-display" class="hidden"></div>
+
             <div id="draft-cards" class="hidden">
                 <!-- Draft opinion cards will be injected here -->
             </div>
@@ -80,6 +82,8 @@
                 </svg>
             </div>
         </main>
+
+        <div id="tooltip" class="tooltip hidden"></div>
     </div>
     <script type="module" src="sidepanel.js"></script>
 </body>

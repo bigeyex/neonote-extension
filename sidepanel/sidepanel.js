@@ -18,6 +18,8 @@ const loadingIndicator = document.getElementById('loading-indicator');
 const recentTagsContainer = document.getElementById('recent-tags');
 const summarizeBtn = document.getElementById('summarize-page');
 const draftCardsContainer = document.getElementById('draft-cards');
+const reasoningDisplay = document.getElementById('reasoning-display');
+const tooltip = document.getElementById('tooltip');
 
 let recentTags = [];
 
@@ -59,6 +61,8 @@ async function init() {
     if (currentTabId) {
         await ensureHighlighterInTab(currentTabId);
     }
+
+    initTooltips();
 }
 
 // Notify when sidebar closes removed - handled by port disconnection
@@ -142,6 +146,17 @@ function setupListeners() {
         currentFilter.text = '';
         clearFiltersBtn.style.display = 'none';
         loadNotes(true);
+    });
+
+    // Alt + 1-5 for recent tags
+    document.addEventListener('keydown', (e) => {
+        if (e.altKey && !isNaN(e.key) && e.key >= '1' && e.key <= '5') {
+            const index = parseInt(e.key) - 1;
+            if (recentTags[index]) {
+                e.preventDefault();
+                insertRecentTag(recentTags[index]);
+            }
+        }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -582,7 +597,7 @@ function renderRecentTags() {
         const tagEl = document.createElement('div');
         tagEl.className = 'recent-tag';
         tagEl.innerHTML = `<span class="recent-tag-index">${index + 1}</span>${tag}`;
-        tagEl.title = `Cmd + Shift + ${index + 1} to insert`;
+        tagEl.dataset.tooltip = `Add tag '${tag}' to note (Alt+${index + 1})`;
         tagEl.onclick = () => insertRecentTag(tag);
         recentTagsContainer.appendChild(tagEl);
     });
@@ -636,11 +651,20 @@ async function ensureHighlighterInTab(tabId) {
     }
 }
 
+// Global controller to handle aborts
+let abortController = null;
+
 async function handleSummarize() {
     if (!currentTabId) {
         alert('No active tab found.');
         return;
     }
+
+    // Cancel previous request if any
+    if (abortController) {
+        abortController.abort();
+    }
+    abortController = new AbortController();
 
     // Check LLM config
     const configResult = await chrome.storage.local.get('llmConfig');
@@ -653,6 +677,36 @@ async function handleSummarize() {
 
     summarizeBtn.classList.add('loading');
 
+    // Setup reasoning display with stop button
+    reasoningDisplay.innerHTML = '';
+    reasoningDisplay.classList.remove('hidden');
+    reasoningDisplay.classList.remove('error-box');
+
+    // Create text container
+    const textContainer = document.createElement('div');
+    textContainer.className = 'reasoning-text';
+    textContainer.textContent = 'Thinking...';
+    reasoningDisplay.appendChild(textContainer);
+
+    // Create stop button
+    const stopBtn = document.createElement('div');
+    stopBtn.className = 'stop-btn';
+    stopBtn.title = 'Stop generating';
+    stopBtn.innerHTML = `
+        <svg viewBox="0 0 24 24">
+            <rect x="6" y="6" width="12" height="12"></rect>
+        </svg>
+    `;
+    stopBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (abortController) {
+            abortController.abort();
+            abortController = null;
+            // UI cleanup handled in catch/finally
+        }
+    };
+    reasoningDisplay.appendChild(stopBtn);
+
     try {
         // Get page content from content script
         const response = await chrome.tabs.sendMessage(currentTabId, { type: 'GET_PAGE_CONTENT' });
@@ -660,18 +714,59 @@ async function handleSummarize() {
             throw new Error('Could not get page content');
         }
 
-        // Call LLM
-        const opinions = await summarizeWithLLM(response.content);
+        // Call LLM with reasoning callback & signal
+        let currentLineText = '';
+
+        const opinions = await summarizeWithLLM(response.content, (chunk) => {
+            // Strip newlines to keep it a single line
+            const cleanChunk = chunk.replace(/\n/g, ' ');
+            currentLineText += cleanChunk;
+            textContainer.textContent = currentLineText;
+
+            // Check for overflow
+            if (textContainer.scrollWidth > textContainer.clientWidth) {
+                // Reset with the latest chunk if it overflows
+                currentLineText = cleanChunk.trim();
+                textContainer.textContent = currentLineText;
+            }
+        }, abortController.signal);
+
+        // Hide reasoning when done
+        reasoningDisplay.classList.add('hidden');
+        reasoningDisplay.innerHTML = ''; // Clear text and button
 
         // Render draft cards
         renderDraftCards(opinions);
 
     } catch (e) {
-        console.error('Summarize failed:', e);
-        alert('Summarize failed: ' + e.message);
+        if (e.name === 'AbortError') {
+            console.log('Summarization aborted by user');
+            // Reset UI for cancellation
+            reasoningDisplay.classList.add('hidden');
+            reasoningDisplay.innerHTML = '';
+        } else {
+            console.error('Summarize failed:', e);
+            showSummaryError(e.message);
+        }
     } finally {
         summarizeBtn.classList.remove('loading');
+        abortController = null;
     }
+}
+
+function showSummaryError(message) {
+    reasoningDisplay.classList.add('error-box');
+    reasoningDisplay.classList.remove('hidden');
+    reasoningDisplay.innerHTML = `
+        <div class="error-text">Summarize failed: ${escapeHtml(message)}</div>
+        <div class="error-close-btn" title="Close">×</div>
+    `;
+
+    reasoningDisplay.querySelector('.error-close-btn').onclick = () => {
+        reasoningDisplay.classList.add('hidden');
+        reasoningDisplay.classList.remove('error-box');
+        reasoningDisplay.textContent = '';
+    };
 }
 
 function renderDraftCards(opinions) {
@@ -760,6 +855,72 @@ async function convertDraftToNote(opinion, evidences) {
     await saveNote(note);
     loadNotes(true);
     await updateRecentTags();
+}
+
+function initTooltips() {
+    // Use event delegation on the app container to handle dynamic elements
+    const app = document.getElementById('app');
+
+    app.addEventListener('mouseenter', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+
+        const text = target.getAttribute('data-tooltip');
+        if (!text) return;
+
+        tooltip.textContent = text;
+        tooltip.classList.remove('hidden');
+
+        const updatePosition = () => {
+            const rect = target.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const isHeaderButton = target.closest('header');
+
+            // Default positioning: Above the center
+            let top = rect.top - tooltipRect.height - 8;
+            let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+            let direction = 'above';
+
+            // Special case: Header buttons or if no space above
+            if (isHeaderButton || top < 0) {
+                top = rect.bottom + 8;
+                direction = 'below';
+            }
+
+            // Keep within viewport horizontally
+            if (left < 8) left = 8;
+            if (left + tooltipRect.width > window.innerWidth - 8) {
+                left = window.innerWidth - tooltipRect.width - 8;
+            }
+
+            tooltip.style.top = `${top}px`;
+            tooltip.style.left = `${left}px`;
+
+            tooltip.classList.remove('tooltip-above', 'tooltip-below');
+            tooltip.classList.add(`tooltip-${direction}`);
+        };
+
+        updatePosition();
+
+        // Small delay for the animation
+        requestAnimationFrame(() => {
+            tooltip.classList.add('tooltip-visible');
+        });
+    }, true); // Use capture phase for mouseenter delegation
+
+    app.addEventListener('mouseleave', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+
+        tooltip.classList.remove('tooltip-visible');
+        const onTransitionEnd = () => {
+            if (!tooltip.classList.contains('tooltip-visible')) {
+                tooltip.classList.add('hidden');
+            }
+            tooltip.removeEventListener('transitionend', onTransitionEnd);
+        };
+        tooltip.addEventListener('transitionend', onTransitionEnd);
+    }, true);
 }
 
 init();

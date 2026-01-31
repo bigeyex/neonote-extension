@@ -16,7 +16,7 @@ Output your response as a JSON array with this structure:
 Rules:
 1. Extract 3-7 main opinions from the content.
 2. Each opinion should have 1-3 supporting evidences (quotes or paraphrases from the text).
-3. Focus on substantive opinions, not trivial statements.
+3. Focus on substantive opinions (takeaways are better), not trivial statements.
 4. Keep opinions concise but complete.
 5. Return ONLY the JSON array, no other text.`;
 
@@ -25,7 +25,7 @@ export async function getLLMConfig() {
     return result.llmConfig || {};
 }
 
-export async function summarizeWithLLM(pageContent) {
+export async function summarizeWithLLM(pageContent, onReasoning, signal) {
     const config = await getLLMConfig();
     const { apiKey, modelId } = config;
 
@@ -51,8 +51,10 @@ export async function summarizeWithLLM(pageContent) {
                 { role: 'system', content: SUMMARY_PROMPT },
                 { role: 'user', content: truncatedContent }
             ],
-            temperature: 0.3
-        })
+            temperature: 0.3,
+            stream: true
+        }),
+        signal: signal
     });
 
     if (!response.ok) {
@@ -60,14 +62,54 @@ export async function summarizeWithLLM(pageContent) {
         throw new Error(`LLM API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let fullContent = '';
+    let fullReasoning = '';
 
-    if (!content) {
-        throw new Error('No response from LLM');
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // Keep the last incomplete line
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed === 'data: [DONE]') continue;
+                if (trimmed.startsWith('data: ')) {
+                    try {
+                        const json = JSON.parse(trimmed.slice(6));
+                        const delta = json.choices[0]?.delta;
+                        if (delta) {
+                            if (delta.reasoning_content) {
+                                const chunk = delta.reasoning_content;
+                                fullReasoning += chunk;
+                                if (onReasoning) onReasoning(chunk);
+                            }
+                            if (delta.content) {
+                                fullContent += delta.content;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing stream line:', e);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Stream reading failed:', e);
+        throw e;
     }
 
-    return parseOpinions(content);
+    if (!fullContent) {
+        throw new Error('No content response from LLM');
+    }
+
+    return parseOpinions(fullContent);
 }
 
 function parseOpinions(content) {

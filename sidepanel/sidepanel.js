@@ -4,7 +4,7 @@ import { syncToLark } from '../scripts/lark_sync.js';
 import { handleCleanPaste } from '../scripts/paste_utils.js';
 import { getHostname } from '../scripts/utils.js';
 import { summarizeWithLLM } from '../scripts/llm.js';
-import { initI18n, t } from '../scripts/i18n.js';
+import { initI18n, t, getLanguage } from '../scripts/i18n.js';
 
 const searchInput = document.getElementById('search');
 const clearFiltersBtn = document.getElementById('clear-filters');
@@ -728,6 +728,7 @@ async function handleSummarize() {
         // Call LLM with reasoning callback & signal
         let currentLineText = '';
 
+        const currentLang = getLanguage();
         const opinions = await summarizeWithLLM(response.content, (chunk) => {
             // Strip newlines to keep it a single line
             const cleanChunk = chunk.replace(/\n/g, ' ');
@@ -740,7 +741,7 @@ async function handleSummarize() {
                 currentLineText = cleanChunk.trim();
                 textContainer.textContent = currentLineText;
             }
-        }, abortController.signal);
+        }, abortController.signal, currentLang);
 
         // Hide reasoning when done
         reasoningDisplay.classList.add('hidden');

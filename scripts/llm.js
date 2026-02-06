@@ -25,7 +25,7 @@ export async function getLLMConfig() {
     return result.llmConfig || {};
 }
 
-export async function summarizeWithLLM(pageContent, onReasoning, signal) {
+export async function summarizeWithLLM(pageContent, onReasoning, signal, language = 'en') {
     const config = await getLLMConfig();
     const { apiKey, modelId } = config;
 
@@ -39,6 +39,10 @@ export async function summarizeWithLLM(pageContent, onReasoning, signal) {
         ? pageContent.substring(0, maxLength) + '...[truncated]'
         : pageContent;
 
+    const systemPrompt = language === 'zh'
+        ? `${SUMMARY_PROMPT}\n\nIMPORTANT: You MUST output the "opinion" and "evidences" in Chinese.`
+        : SUMMARY_PROMPT;
+
     const response = await fetch(`${BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -48,7 +52,7 @@ export async function summarizeWithLLM(pageContent, onReasoning, signal) {
         body: JSON.stringify({
             model: modelId || 'doubao-seed-1-8-251228',
             messages: [
-                { role: 'system', content: SUMMARY_PROMPT },
+                { role: 'system', content: systemPrompt },
                 { role: 'user', content: truncatedContent }
             ],
             thinking: {

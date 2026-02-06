@@ -694,7 +694,9 @@ async function handleSummarize() {
     // Create text container
     const textContainer = document.createElement('div');
     textContainer.className = 'reasoning-text';
-    textContainer.textContent = t('sidepanel.summary.thinking');
+    textContainer.textContent = config.enableThinking
+        ? t('sidepanel.summary.thinking')
+        : t('sidepanel.summary.generating');
     reasoningDisplay.appendChild(textContainer);
 
     // Create stop button

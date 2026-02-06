@@ -30,6 +30,7 @@ const syncHomeBtn = document.getElementById('sync-home');
 const llmProviderSelect = document.getElementById('llm-provider');
 const llmApiKeyInput = document.getElementById('llm-api-key');
 const llmModelIdInput = document.getElementById('llm-model-id');
+const llmThinkingEnable = document.getElementById('llm-thinking-enable');
 const saveLLMBtn = document.getElementById('save-llm-config');
 
 let allNotes = [];
@@ -119,14 +120,16 @@ async function setupLLMSettings() {
     if (config.provider) llmProviderSelect.value = config.provider;
     if (config.apiKey) llmApiKeyInput.value = config.apiKey;
     if (config.modelId) llmModelIdInput.value = config.modelId;
+    llmThinkingEnable.checked = config.enableThinking || false;
 
     saveLLMBtn.addEventListener('click', async () => {
         const provider = llmProviderSelect.value;
         const apiKey = llmApiKeyInput.value.trim();
         const modelId = llmModelIdInput.value.trim() || 'doubao-seed-1-8-251228';
+        const enableThinking = llmThinkingEnable.checked;
 
         await chrome.storage.local.set({
-            llmConfig: { provider, apiKey, modelId }
+            llmConfig: { provider, apiKey, modelId, enableThinking }
         });
 
         showToast(t('msg.llmSaved'));

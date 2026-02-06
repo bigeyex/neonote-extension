@@ -41,6 +41,7 @@ const translations = {
         'settings.llm.provider': 'Provider',
         'settings.llm.apiKey': 'API Key',
         'settings.llm.modelId': 'Model ID',
+        'settings.llm.thinking': 'Enable Thinking (Reasoning)',
         'settings.llm.save': 'Save LLM Config',
 
         // Messages
@@ -70,6 +71,7 @@ const translations = {
         'sidepanel.tooltip.addTag': "Add tag '{tag}' to note (Alt+{n})",
 
         'sidepanel.summary.thinking': 'Thinking...',
+        'sidepanel.summary.generating': 'Generating...',
         'sidepanel.summary.stop': 'Stop generating',
         'sidepanel.summary.failed': 'Summarize failed: ',
 
@@ -122,6 +124,7 @@ const translations = {
         'settings.llm.provider': '服务商',
         'settings.llm.apiKey': 'API Key',
         'settings.llm.modelId': '模型 ID',
+        'settings.llm.thinking': '开启深度思考 (Reasoning)',
         'settings.llm.save': '保存 AI 配置',
 
         // Messages
@@ -151,6 +154,7 @@ const translations = {
         'sidepanel.tooltip.addTag': "添加标签 '{tag}' 到笔记 (Alt+{n})",
 
         'sidepanel.summary.thinking': '思考中...',
+        'sidepanel.summary.generating': '生成中...',
         'sidepanel.summary.stop': '停止生成',
         'sidepanel.summary.failed': '总结失败：',
 

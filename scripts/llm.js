@@ -51,6 +51,9 @@ export async function summarizeWithLLM(pageContent, onReasoning, signal) {
                 { role: 'system', content: SUMMARY_PROMPT },
                 { role: 'user', content: truncatedContent }
             ],
+            thinking: {
+                enabled: config.enableThinking || false
+            },
             temperature: 0.3,
             stream: true
         }),
